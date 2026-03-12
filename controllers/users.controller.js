@@ -12,7 +12,7 @@ export async function getUserRoleController(req, res) {
 
     res.status(200).json({
       ok: true,
-      role: user.rol,
+      rol: user.rol,
       name: user.name,
       email: user.email
     });

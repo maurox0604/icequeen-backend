@@ -19,12 +19,24 @@
 // // export default router;
 
 
-import { verifyAuth, allowRoles } from "../middlewares/auth.middleware.js";
+// import { verifyAuth, allowRoles } from "../middlewares/auth.middleware.js";
 
-router.get(
-  "/",
-  verifyAuth,
-  allowRoles("superadmin"),
-  getReportes
-);
+// router.get(
+//   "/",
+//   verifyAuth,
+//   allowRoles("superadmin"),
+//   getReportes
+// );
+
+
+
+import express from "express";
+import { getUserRoleController } from "../controllers/users.controller.js";
+import { verifyAuth } from "../middlewares/auth.middleware.js";
+
+const router = express.Router();
+
+router.get("/me/role", verifyAuth, getUserRoleController);
+
+export default router;
 

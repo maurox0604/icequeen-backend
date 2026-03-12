@@ -9,6 +9,7 @@ import ventasRoutes from "./routes/ventas.routes.js";
 import reportesRoutes from "./routes/reportes.routes.js";
 import sedesRoutes from "./routes/sedes.routes.js";
 import publicRoutes from "./routes/public.routes.js";
+import usersRoutes from "./routes/users.routes.js";
 
 const app = express();
 
@@ -27,6 +28,8 @@ app.use("/ventas", ventasRoutes);
 app.use("/reportes", reportesRoutes);
 app.use("/sedes", sedesRoutes);
 app.use("/api/public", publicRoutes);
+
+app.use("/users", usersRoutes);
 
 app.get("/", (req, res) => {
     res.send("🔥 API Ice Queen funcionando");
