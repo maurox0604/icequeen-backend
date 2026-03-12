@@ -2,13 +2,13 @@ import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
 
-import productosRoutes from "./routes/productos.routes.js";
-import categoriasRoutes from "./routes/categorias.routes.js";
-import ventasRoutes from "./routes/ventas.routes.js";
+import productosRoutes from "../routes/productos.routes.js";
+import categoriasRoutes from "../routes/categorias.routes.js";
+import ventasRoutes from "../routes/ventas.routes.js";
 
-import reportesRoutes from "./routes/reportes.routes.js";
-import sedesRoutes from "./routes/sedes.routes.js";
-import publicRoutes from "./routes/public.routes.js";
+import reportesRoutes from "../routes/reportes.routes.js";
+import sedesRoutes from "../routes/sedes.routes.js";
+import publicRoutes from "../routes/public.routes.js";
 
 const app = express();
 
