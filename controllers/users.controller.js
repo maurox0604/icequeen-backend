@@ -21,5 +21,6 @@ export async function getUserRoleController(req, res) {
     console.error("Error en getUserRole:", error);
     res.status(500).json({ ok: false, error: "Error interno del servidor" });
   }
+  
 }
 
