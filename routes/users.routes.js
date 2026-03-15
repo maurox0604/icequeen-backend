@@ -31,12 +31,15 @@
 
 
 import express from "express";
-import { getUserRoleController } from "../controllers/users.controller.js";
-import { verifyAuth } from "../middlewares/auth.middleware.js";
+import { getUserRoleController, registerUserController } from "../controllers/users.controller.js";
+import { verifyAuth, allowRoles  } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
 router.get("/me/role", verifyAuth, getUserRoleController);
+
+// ✅ NUEVA: solo superadmin puede crear usuarios
+router.post("/register", verifyAuth, allowRoles("superadmin"), registerUserController);
 
 export default router;
 

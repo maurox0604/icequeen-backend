@@ -8,3 +8,13 @@ export async function getUserRoleDB(email) {
   );
   return rows[0] || null;
 }
+
+
+// ✅ NUEVO: inserta usuario en tabla users
+export async function registerUserDB({ name, email, rol }) {
+    const [result] = await pool.query(
+        "INSERT INTO users (name, email, rol) VALUES (?, ?, ?)",
+        [name, email, rol]
+    );
+    return result;
+}
