@@ -14,7 +14,7 @@ import usersRoutes from "./routes/users.routes.js";
 const app = express();
 
 // 👇 MUY IMPORTANTE
-// app.options("*", cors());
+app.options("*", cors({ origin: "*" }));
 
 app.use(cors({ origin: "*" }));
 app.use(bodyParser.json());
