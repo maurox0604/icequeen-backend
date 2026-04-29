@@ -1,13 +1,11 @@
 // models/ventas.model.js
 import { pool } from "../db/pool.js";
 
-
 /**
  * Procesar venta con transacción segura
  * Compatible con Clever + Vercel
  */
 export async function procesarVenta(items, id_user, fechaVenta, id_sede) {
-
   if (!items || !items.length) {
     throw new Error("No items en compra");
   }
@@ -21,12 +19,12 @@ export async function procesarVenta(items, id_user, fechaVenta, id_sede) {
 
     // 1️⃣ Crear factura
     const [facturaResult] = await connection.query(
-      "INSERT INTO facturas () VALUES ()"
+      "INSERT INTO facturas () VALUES ()",
     );
     const idFactura = facturaResult.insertId;
 
     // 2️⃣ Insertar ventas
-    const values = items.map(item => [
+    const values = items.map((item) => [
       idFactura,
       item.id,
       item.cantCompra,
@@ -34,7 +32,8 @@ export async function procesarVenta(items, id_user, fechaVenta, id_sede) {
       item.totVentaXhelado,
       item.user || id_user || null,
       fechaVenta,
-      id_sede || 1
+      id_sede || 1,
+      item.motivo || "venta",
     ]);
 
     await connection.query(
@@ -47,10 +46,11 @@ export async function procesarVenta(items, id_user, fechaVenta, id_sede) {
         venta_helado,
         email,
         fecha,
-        id_sede
+        id_sede,
+        motivo
       ) VALUES ?
       `,
-      [values]
+      [values],
     );
 
     // 3️⃣ Actualizar inventario (CASE WHEN)
@@ -67,14 +67,13 @@ export async function procesarVenta(items, id_user, fechaVenta, id_sede) {
 
     // 3️⃣ Descontar inventario correctamente
     for (const item of items) {
-
       const [result] = await connection.query(
         `
         UPDATE helados
         SET cantidad = cantidad - ?
         WHERE id = ? AND cantidad >= ?
         `,
-        [item.cantCompra, item.id, item.cantCompra]
+        [item.cantCompra, item.id, item.cantCompra],
       );
 
       if (result.affectedRows === 0) {
@@ -85,14 +84,12 @@ export async function procesarVenta(items, id_user, fechaVenta, id_sede) {
     await connection.commit();
 
     return { ok: true, idFactura };
-
   } catch (error) {
     if (connection) {
       await connection.rollback();
     }
     console.error("❌ Error procesando venta:", error);
     throw error;
-
   } finally {
     if (connection) {
       connection.release(); // 🔴 LIBERA SIEMPRE
@@ -120,7 +117,7 @@ export async function getVentasByRange(start, end) {
         LEFT JOIN sedes s ON v.id_sede = s.id
         WHERE DATE(v.fecha) BETWEEN ? AND ?
         ORDER BY v.fecha DESC`,
-    [start, end]
+    [start, end],
   );
 
   return rows;
