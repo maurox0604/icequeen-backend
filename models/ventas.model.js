@@ -109,6 +109,7 @@ export async function getVentasByRange(start, end) {
     `SELECT 
         v.*,
         h.sabor,
+        v.motivo, 
         h.icon,
         s.nombre AS nombre_sede,
         v.fecha AS fecha_local
