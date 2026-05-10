@@ -1,20 +1,31 @@
-import { getTopSabores } from "../models/reportes.model.js";
+import {
+  getTopSabores,
+  getDashboardMetrics,
+} from "../models/reportes.model.js";
 
 export const topSaboresController = async (req, res) => {
-    console.log("probando gettopsabores")
-    try {
-        const { start, end } = req.query;
+  try {
+    const { start, end } = req.query;
+    const data = await getTopSabores(start ?? null, end ?? null);
+    res.json(data);
+  } catch (error) {
+    console.error("Error en topSaboresController:", error);
+    res.status(500).json({ message: "Error obteniendo top sabores" });
+  }
+};
 
-        console.log("📩 Fechas recibidas:", start, end);
-
-        const data = await getTopSabores(start, end);
-
-        res.json({
-            ok: true,
-            data,
-        });
-    } catch (error) {
-        console.error("❌ Error en topSaboresController:", error);
-        res.status(500).json({ ok: false, error: error.message });
+export const dashboardController = async (req, res) => {
+  try {
+    const { start, end } = req.query;
+    if (!start || !end) {
+      return res.status(400).json({ message: "Faltan parámetros start y end" });
     }
+    const data = await getDashboardMetrics(start, end);
+    res.json(data);
+  } catch (error) {
+    console.error("Error en dashboardController:", error);
+    res
+      .status(500)
+      .json({ message: "Error obteniendo métricas del dashboard" });
+  }
 };
