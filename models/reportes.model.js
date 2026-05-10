@@ -8,7 +8,7 @@ export const getTopSabores = async (start, end) => {
     SELECT h.sabor, SUM(v.cantidad) AS total_vendido
     FROM ventas v
     JOIN helados h ON v.id_helado = h.id
-    WHERE DATE(CONVERT_TZ(v.fecha, '+00:00', '-05:00')) BETWEEN ? AND ?
+    WHERE DATE(v.fecha) BETWEEN ? AND ?
       AND COALESCE(v.activo, 1) = 1
     GROUP BY h.sabor
     ORDER BY total_vendido DESC
