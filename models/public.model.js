@@ -7,6 +7,7 @@ export const getHeladosPublicos = async () => {
       h.sabor AS nombre,
       h.precio,
       h.icon,
+      h.fotos,
       h.cantidad,
       h.activo,
       h.id_categoria,
@@ -17,9 +18,16 @@ export const getHeladosPublicos = async () => {
       AND v.fecha >= NOW() - INTERVAL 7 DAY
       AND COALESCE(v.activo, 1) = 1
     WHERE h.activo = 1 AND h.cantidad > 0
-    GROUP BY h.id, h.sabor, h.precio, h.icon, h.cantidad, h.activo, h.id_categoria
+    GROUP BY h.id, h.sabor, h.precio, h.icon, h.fotos, h.cantidad, h.activo, h.id_categoria
     ORDER BY ventas_7dias DESC, nombre ASC;
   `);
 
-  return rows;
+  return rows.map((row) => ({
+    ...row,
+    fotos: row.fotos
+      ? typeof row.fotos === "string"
+        ? JSON.parse(row.fotos)
+        : row.fotos
+      : [],
+  }));
 };
