@@ -1,33 +1,32 @@
 import {
-    crearProducto,
-    getProductosAdmin,
-    actualizarProducto,
-    activarProducto,
-    desactivarProducto,
-    getProductoByID,
-    getProductosOrdenadosPorPopularidad,
-    getProductosPorCategoria
+  crearProducto,
+  getProductosAdmin,
+  actualizarProducto,
+  activarProducto,
+  desactivarProducto,
+  getProductoByID,
+  getProductosOrdenadosPorPopularidad,
+  getProductosPorCategoria,
 } from "../models/productos.model.js";
 
-
 export async function crearProductoController(req, res) {
-    try {
-        const { nombre, precio, icon, cantidad, id_categoria } = req.body;
-        console.log("controller: ",nombre, precio, icon, cantidad, id_categoria)
+  try {
+    const { nombre, precio, icon, cantidad, id_categoria } = req.body;
+    console.log("controller: ", nombre, precio, icon, cantidad, id_categoria);
 
-        if (!nombre || !precio || !cantidad || !id_categoria) {
-        return res.status(400).json({ ok: false, error: "Datos incompletos" });
-        }
-
-        await crearProducto(nombre, precio, icon, cantidad, id_categoria);
-        res.status(201).json({ ok: true, message: "Producto creado correctamente" });
-    } catch (error) {
-        console.error("Error en crearProductoController:", error);
-        res.status(500).json({ ok: false, error: "Error interno" });
+    if (!nombre || !precio || !cantidad || !id_categoria) {
+      return res.status(400).json({ ok: false, error: "Datos incompletos" });
     }
-}
-    
 
+    await crearProducto(nombre, precio, icon, cantidad, id_categoria);
+    res
+      .status(201)
+      .json({ ok: true, message: "Producto creado correctamente" });
+  } catch (error) {
+    console.error("Error en crearProductoController:", error);
+    res.status(500).json({ ok: false, error: "Error interno" });
+  }
+}
 
 // export async function listarProductosController(req, res) {
 //     try {
@@ -39,93 +38,107 @@ export async function crearProductoController(req, res) {
 //     }
 // }
 
-
-
 export const listarProductosController = async (req, res) => {
-    try {
-        const productos = await getProductosOrdenadosPorPopularidad();
-        res.status(200).json({ ok: true, productos });
-    } catch (error) {
-        console.error("Error obteniendo productos:", error);
-        res.status(500).json({ ok: false, error: "Error en el servidor" });
-    }
-    
+  try {
+    const productos = await getProductosOrdenadosPorPopularidad();
+    res.status(200).json({ ok: true, productos });
+  } catch (error) {
+    console.error("Error obteniendo productos:", error);
+    res.status(500).json({ ok: false, error: "Error en el servidor" });
+  }
 };
 
-
 export async function actualizarProductoController(req, res) {
-    
-    try {
-        const { id } = req.params;
-        const { nombre, precio, icon, cantidad, id_categoria } = req.body;
-        console.log("id categoria en controller: ", id_categoria)
+  try {
+    const { id } = req.params;
+    const { nombre, precio, icon, cantidad, id_categoria } = req.body;
+    console.log("id categoria en controller: ", id_categoria);
 
-        await actualizarProducto(id, nombre, precio, icon, cantidad, id_categoria);
-        res.json({ ok: true });
-    } catch (error) {
-        console.error("Error actualizando producto:", error);
-        res.status(500).json({ ok: false, error: "Error al actualizar producto" });
-    }
+    await actualizarProducto(id, nombre, precio, icon, cantidad, id_categoria);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Error actualizando producto:", error);
+    res.status(500).json({ ok: false, error: "Error al actualizar producto" });
+  }
 }
+
+export const actualizarMediaController = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { descripcion, fotos } = req.body;
+
+    // fotos llega como array [], lo guardamos como JSON string
+    await pool.query(
+      `UPDATE helados SET descripcion = ?, fotos = ? WHERE id = ?`,
+      [descripcion ?? null, JSON.stringify(fotos ?? []), id],
+    );
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("❌ actualizarMedia:", err);
+    res.status(500).json({ error: "Error actualizando media" });
+  }
+};
 
 // Controlador para desactivar producto
 export async function desactivarProductoController(req, res) {
-    try {
-        const { id } = req.params;
-        await desactivarProducto(id);
-        res.json({ ok: true });
-    } catch (error) {
-        console.error("Error eliminando producto:", error);
-        res.status(500).json({ ok: false, error: "Error al eliminar producto" });
-    }
+  try {
+    const { id } = req.params;
+    await desactivarProducto(id);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Error eliminando producto:", error);
+    res.status(500).json({ ok: false, error: "Error al eliminar producto" });
+  }
 }
 
 // Controlador para activar producto
 export async function activarProductoController(req, res) {
-    try {
-        const { id } = req.params;
-        await activarProducto(id);
-        res.json({ ok: true });
-    } catch (error) {
-        console.error("Error activando producto:", error);
-        res.status(500).json({ ok: false, error: "Error activando producto" });
-    }
+  try {
+    const { id } = req.params;
+    await activarProducto(id);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Error activando producto:", error);
+    res.status(500).json({ ok: false, error: "Error activando producto" });
+  }
 }
 
-
 export async function getProductoByIdController(req, res) {
-    try {
-        const { id } = req.params;
-        const producto = await getProductoByID(id);
+  try {
+    const { id } = req.params;
+    const producto = await getProductoByID(id);
 
-        if (!producto) return res.status(404).json({ ok: false, error: "Producto no encontrado" });
+    if (!producto)
+      return res
+        .status(404)
+        .json({ ok: false, error: "Producto no encontrado" });
 
-        res.json({ ok: true, producto });
-    } catch (error) {
-        console.error("Error obteniendo producto:", error);
-        res.status(500).json({ ok: false, error: "Error al obtener producto" });
-    }
+    res.json({ ok: true, producto });
+  } catch (error) {
+    console.error("Error obteniendo producto:", error);
+    res.status(500).json({ ok: false, error: "Error al obtener producto" });
+  }
 }
 
 export async function getProductosPorCategoriaController(req, res) {
-    try {
-        const { id } = req.params;
-        const productos = await getProductosPorCategoria(id);
-        res.json({ ok: true, productos });
-    } catch (error) {
-        console.error("🔥 ERROR productos/all:", error);
-        res.status(500).json({ ok: false, error: error.message });
-    }
+  try {
+    const { id } = req.params;
+    const productos = await getProductosPorCategoria(id);
+    res.json({ ok: true, productos });
+  } catch (error) {
+    console.error("🔥 ERROR productos/all:", error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
 }
 
 // Controlador para obtener todos los productos (activos e inactivos)
 export const listarProductosAdminController = async (req, res) => {
-    try {
-        const productos = await getProductosAdmin();
-        res.status(200).json({ ok: true, productos });
-    } catch (error) {
-        console.error("Error obteniendo productos admin:", error);
-        res.status(500).json({ ok: false, error: "Error en el servidor" });
-    }
+  try {
+    const productos = await getProductosAdmin();
+    res.status(200).json({ ok: true, productos });
+  } catch (error) {
+    console.error("Error obteniendo productos admin:", error);
+    res.status(500).json({ ok: false, error: "Error en el servidor" });
+  }
 };
-

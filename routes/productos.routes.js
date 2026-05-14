@@ -1,25 +1,21 @@
 import { Router } from "express";
 import cors from "cors";
 import {
-    crearProductoController,
-    listarProductosController,
-    actualizarProductoController,
-    desactivarProductoController,
-    getProductoByIdController,
-    getProductosPorCategoriaController,
-    activarProductoController,
-    listarProductosAdminController
+  crearProductoController,
+  listarProductosController,
+  actualizarProductoController,
+  desactivarProductoController,
+  getProductoByIdController,
+  getProductosPorCategoriaController,
+  activarProductoController,
+  listarProductosAdminController,
+  actualizarMediaController,
 } from "../controllers/productos.controller.js";
-
-
-
-
 
 const router = Router();
 
 // Agregar CORS directamente
 router.use(cors({ origin: "*" }));
-
 
 // ➤ Crear producto
 router.post("/create", crearProductoController);
@@ -45,5 +41,7 @@ router.put("/:id/desactivar", desactivarProductoController);
 // ➤ Obtener productos por categoría
 router.get("/categoria/:id", getProductosPorCategoriaController);
 
+// ➤ Actualizar media (fotos e icono)
+router.put("/media/:id", actualizarMediaController);
 
 export default router;
