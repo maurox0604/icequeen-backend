@@ -16,12 +16,14 @@ dotenv.config();
 //     })
 
 export const pool = mysql.createPool({
-    host: process.env.MYSQL_HOST,
-    user: process.env.MYSQL_USER,
-    password: process.env.MYSQL_PASSWORD,
-    database: process.env.MYSQL_DATABASE,
-    timezone: 'Z',          // UTC REAL
-    waitForConnections: true,
-    connectionLimit: 1,     // 🔴 CLAVE PARA CLEVER
-    queueLimit: 0
+  host: process.env.MYSQL_HOST,
+  user: process.env.MYSQL_USER,
+  password: process.env.MYSQL_PASSWORD,
+  database: process.env.MYSQL_DATABASE,
+  port: process.env.MYSQL_PORT,
+  timezone: "Z", // UTC REAL
+  waitForConnections: true,
+  connectionLimit: 2, // 🔴 CLAVE PARA CLEVER
+  queueLimit: 10,
+  connectTimeout: 10000,
 });
