@@ -1,11 +1,18 @@
 import { Router } from "express";
 import cors from "cors";
-import { listarSedes } from "../controllers/sedes.controller.js";
+import {
+  listarSedes,
+  crearSedeController,
+  actualizarSedeController,
+  toggleSedeController,
+} from "../controllers/sedes.controller.js";
 
 const router = Router();
-// Agregar CORS directamente
 router.use(cors({ origin: "*" }));
 
 router.get("/", listarSedes);
+router.post("/", crearSedeController);
+router.put("/:id", actualizarSedeController);
+router.put("/:id/toggle", toggleSedeController);
 
 export default router;
