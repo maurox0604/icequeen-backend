@@ -1,45 +1,25 @@
-// // import express from "express";
-// // import cors from "cors";
-// import { getUserRoleController } from "../controllers/users.controller.js";
-// import { verifyFirebaseToken } from "../middlewares/verifyFirebaseToken.js";
-
-// router.get(
-//     "/me/role",
-//     verifyFirebaseToken,
-//     getUserRoleController
-// );
-
-// // const router = express.Router();
-// // // Agregar CORS directamente
-// // router.use(cors({ origin: "*" }));
-
-// // // Ruta usada por el frontend actual
-// // router.post("/getUserRole", getUserRoleController);
-
-// // export default router;
-
-
-// import { verifyAuth, allowRoles } from "../middlewares/auth.middleware.js";
-
-// router.get(
-//   "/",
-//   verifyAuth,
-//   allowRoles("superadmin"),
-//   getReportes
-// );
-
-
-
+// server/routes/users.routes.js
 import express from "express";
-import { getUserRoleController, registerUserController } from "../controllers/users.controller.js";
-import { verifyAuth, allowRoles  } from "../middlewares/auth.middleware.js";
+import {
+  getUserRoleController,
+  registerUserController,
+  getAllUsersController,
+  updateUserRolController,
+  deactivateUserController,
+  reactivateUserController,
+} from "../controllers/users.controller.js";
+import { verifyAuth, allowRoles } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
+// Ruta pública autenticada — cualquier usuario logueado
 router.get("/me/role", verifyAuth, getUserRoleController);
 
-// ✅ NUEVA: solo superadmin puede crear usuarios
-router.post("/register", verifyAuth, allowRoles("superadmin"), registerUserController);
+// Rutas solo superadmin
+router.post("/register",        verifyAuth, allowRoles("superadmin"), registerUserController);
+router.get("/",                 verifyAuth, allowRoles("superadmin"), getAllUsersController);
+router.put("/:id/rol",          verifyAuth, allowRoles("superadmin"), updateUserRolController);
+router.delete("/:id",           verifyAuth, allowRoles("superadmin"), deactivateUserController);
+router.put("/:id/reactivar",    verifyAuth, allowRoles("superadmin"), reactivateUserController);
 
 export default router;
-
