@@ -27,12 +27,5 @@
         }
       ]
     }
-  ],
-  "redirects": [
-    {
-      "source": "/go",
-      "destination": "/public",
-      "permanent": false
-    }
   ]
 }
