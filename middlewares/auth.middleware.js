@@ -10,7 +10,8 @@ if (!admin.apps.length) {
     credential: admin.credential.cert({
       projectId: process.env.FIREBASE_PROJECT_ID,
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+      // privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
     }),
   });
 }
@@ -41,27 +42,27 @@ export async function verifyAuth(req, res, next) {
     const userDB = await getUserRoleDB(decoded.email);
 
     if (!userDB) {
-        return res.status(403).json({
-            ok: false,
-            message: "Usuario no registrado en sistema",
-        });
-        }
-
-        // 3️⃣ Adjuntar usuario completo
-        req.user = {
-        uid: decoded.uid,
-        email: decoded.email,
-        role: userDB.rol,
-        };
-
-        next();
-    } catch (error) {
-        console.error("Error en verifyAuth:", error);
-        return res.status(401).json({
+      return res.status(403).json({
         ok: false,
-        message: "Token inválido",
-        });
+        message: "Usuario no registrado en sistema",
+      });
     }
+
+    // 3️⃣ Adjuntar usuario completo
+    req.user = {
+      uid: decoded.uid,
+      email: decoded.email,
+      role: userDB.rol,
+    };
+
+    next();
+  } catch (error) {
+    console.error("Error en verifyAuth:", error);
+    return res.status(401).json({
+      ok: false,
+      message: "Token inválido",
+    });
+  }
 }
 
 /**
@@ -69,13 +70,13 @@ export async function verifyAuth(req, res, next) {
  * @param  {...string} allowedRoles
  */
 export function allowRoles(...allowedRoles) {
-    return (req, res, next) => {
-        if (!allowedRoles.includes(req.user.role)) {
-        return res.status(403).json({
-            ok: false,
-            message: "No tienes permisos para esta acción",
-        });
-        }
-        next();
-    };
+  return (req, res, next) => {
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({
+        ok: false,
+        message: "No tienes permisos para esta acción",
+      });
+    }
+    next();
+  };
 }
