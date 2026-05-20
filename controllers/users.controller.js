@@ -13,8 +13,13 @@ export async function getUserRoleController(req, res) {
   try {
     const email = req.user.email;
     const user = await getUserRoleDB(email);
-    if (!user) return res.status(404).json({ ok: false, error: "Usuario no encontrado" });
-    res.status(200).json({ ok: true, rol: user.rol, name: user.name, email: user.email });
+    if (!user)
+      return res
+        .status(404)
+        .json({ ok: false, error: "Usuario no encontrado" });
+    res
+      .status(200)
+      .json({ ok: true, rol: user.rol, name: user.name, email: user.email });
   } catch (error) {
     console.error("Error en getUserRole:", error);
     res.status(500).json({ ok: false, error: "Error interno del servidor" });
@@ -23,15 +28,25 @@ export async function getUserRoleController(req, res) {
 
 export async function registerUserController(req, res) {
   try {
+    // DEBUG TEMPORAL
+    console.log("🔑 admin.apps.length:", admin.apps.length);
+    console.log("🔑 PK slice:", process.env.FIREBASE_PRIVATE_KEY?.slice(0, 60));
+
     const { name, email, password, rol } = req.body;
 
     if (!name || !email || !password || !rol) {
-      return res.status(400).json({ ok: false, error: "Faltan campos: name, email, password, rol" });
+      return res.status(400).json({
+        ok: false,
+        error: "Faltan campos: name, email, password, rol",
+      });
     }
 
     const rolesValidos = ["superadmin", "admin", "vendedor"];
     if (!rolesValidos.includes(rol)) {
-      return res.status(400).json({ ok: false, error: `Rol inválido. Debe ser uno de: ${rolesValidos.join(", ")}` });
+      return res.status(400).json({
+        ok: false,
+        error: `Rol inválido. Debe ser uno de: ${rolesValidos.join(", ")}`,
+      });
     }
 
     // 1. Crear en Firebase
@@ -50,7 +65,9 @@ export async function registerUserController(req, res) {
   } catch (error) {
     console.error("Error en registerUserController:", error);
     if (error.code === "auth/email-already-exists") {
-      return res.status(400).json({ ok: false, error: "El email ya está registrado" });
+      return res
+        .status(400)
+        .json({ ok: false, error: "El email ya está registrado" });
     }
     res.status(500).json({ ok: false, error: "Error interno del servidor" });
   }
@@ -82,7 +99,9 @@ export async function updateUserRolController(req, res) {
     if (req.user.email) {
       const self = await getUserRoleDB(req.user.email);
       if (self && String(self.id) === String(id) && rol !== "superadmin") {
-        return res.status(403).json({ ok: false, error: "No puedes cambiar tu propio rol" });
+        return res
+          .status(403)
+          .json({ ok: false, error: "No puedes cambiar tu propio rol" });
       }
     }
 
@@ -103,7 +122,9 @@ export async function deactivateUserController(req, res) {
     if (req.user.email) {
       const self = await getUserRoleDB(req.user.email);
       if (self && String(self.id) === String(id)) {
-        return res.status(403).json({ ok: false, error: "No puedes desactivarte a ti mismo" });
+        return res
+          .status(403)
+          .json({ ok: false, error: "No puedes desactivarte a ti mismo" });
       }
     }
 

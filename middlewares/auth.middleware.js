@@ -6,6 +6,10 @@ import { getUserRoleDB } from "../models/users.model.js";
  * Nunca usar service-account.json en frontend.
  */
 if (!admin.apps.length) {
+  console.log(
+    "🔑 PK primeros 50 chars:",
+    process.env.FIREBASE_PRIVATE_KEY?.slice(0, 50),
+  );
   admin.initializeApp({
     credential: admin.credential.cert({
       projectId: process.env.FIREBASE_PROJECT_ID,
