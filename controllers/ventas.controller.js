@@ -24,7 +24,12 @@ export async function procesarCarritoController(req, res) {
     const fechaVenta = fecha_manual || null;
     const user = items[0]?.user || null;
 
-    const resultVenta = await procesarVenta(items, user, fechaVenta, id_sede || 1);
+    const resultVenta = await procesarVenta(
+      items,
+      user,
+      fechaVenta,
+      id_sede || 1,
+    );
 
     return res.status(200).json({
       ok: true,
@@ -33,7 +38,15 @@ export async function procesarCarritoController(req, res) {
     });
   } catch (error) {
     console.error("❌ Error en procesarCarritoController:", error);
-    return res.status(500).json({ ok: false, message: error.message });
+
+    // Detectar si el error es por stock insuficiente
+    const esStockInsuficiente = error.message?.includes("Stock insuficiente");
+
+    return res.status(esStockInsuficiente ? 409 : 500).json({
+      ok: false,
+      message: error.message,
+      tipo: esStockInsuficiente ? "stock_insuficiente" : "error_servidor",
+    });
   }
 }
 
@@ -43,7 +56,12 @@ export async function procesarCarritoController(req, res) {
 export const ventasPorRangoController = async (req, res) => {
   try {
     const { start, end } = req.query;
-    console.log("ventasPorRangoController fechas ini y fin: ", start, "  fin: ", end);
+    console.log(
+      "ventasPorRangoController fechas ini y fin: ",
+      start,
+      "  fin: ",
+      end,
+    );
 
     if (!start || !end) {
       return res.status(400).json({ message: "Faltan parámetros start y end" });
@@ -68,7 +86,9 @@ export async function editarFacturaController(req, res) {
     const { fecha, id_sede } = req.body;
 
     if (!fecha && !id_sede) {
-      return res.status(400).json({ message: "Envía al menos fecha o id_sede" });
+      return res
+        .status(400)
+        .json({ message: "Envía al menos fecha o id_sede" });
     }
 
     const result = await editarFactura(Number(id_factura), { fecha, id_sede });
@@ -104,11 +124,21 @@ export async function editarItemController(req, res) {
     const { id } = req.params;
     const { id_helado, cantidad, motivo } = req.body;
 
-    if (id_helado === undefined && cantidad === undefined && motivo === undefined) {
-      return res.status(400).json({ message: "Envía al menos un campo a editar" });
+    if (
+      id_helado === undefined &&
+      cantidad === undefined &&
+      motivo === undefined
+    ) {
+      return res
+        .status(400)
+        .json({ message: "Envía al menos un campo a editar" });
     }
 
-    const result = await editarItem(Number(id), { id_helado, cantidad, motivo });
+    const result = await editarItem(Number(id), {
+      id_helado,
+      cantidad,
+      motivo,
+    });
     return res.json(result);
   } catch (error) {
     console.error("❌ editarItemController:", error);
