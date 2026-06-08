@@ -23,7 +23,7 @@ export const pool = mysql.createPool({
   port: process.env.MYSQL_PORT,
   timezone: "Z", // UTC REAL
   waitForConnections: true,
-  connectionLimit: 2, // 🔴 CLAVE PARA CLEVER
-  queueLimit: 10,
+  connectionLimit: 1, // 🔴 CLAVE PARA CLEVER
+  queueLimit: 5, // 🔴 CLAVE PARA CLEVER
   connectTimeout: 10000,
 });
