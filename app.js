@@ -13,6 +13,10 @@ import bootstrapRoutes from "./routes/bootstrap.routes.js"; // 👈 NUEVO
 
 const app = express();
 
+// ── Registrar en app.js ───────────────────────────────────────
+const costeoRoutes = require("./api/routes/costeo.routes");
+app.use("/api/costeo", costeoRoutes);
+
 app.options("*", cors({ origin: "*" }));
 app.use(cors({ origin: "*" }));
 app.use(bodyParser.json());
