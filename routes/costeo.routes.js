@@ -6,7 +6,7 @@ import * as ctrl from "../controllers/costeo.controller.js";
 const router = Router();
 
 // Todas las rutas requieren autenticación y rol admin o contador
-const soloAdmin = [verifyAuth, allowRoles("admin", "contador")];
+const soloAdmin = [verifyAuth, allowRoles("superadmin", "contador")];
 
 // ── Ingredientes ──────────────────────────────────────────────
 router.get("/ingredientes", ...soloAdmin, ctrl.listarIngredientes);
