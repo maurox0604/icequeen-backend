@@ -1,7 +1,7 @@
 // models/preparaciones.model.js
 // Sub-recetas (preparaciones caseras): leche condensada, mermeladas, caramelo, etc.
 // Soporta 2 niveles: una preparación puede usar otra preparación como ingrediente.
-import db from "../db/pool.js";
+import { pool as db } from "../db/pool.js";
 
 // ─────────────────────────────────────────────────────────────
 // HELPERS
