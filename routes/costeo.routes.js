@@ -4,7 +4,6 @@ import * as ctrl from "../controllers/costeo.controller.js";
 import * as prepCtrl from "../controllers/preparaciones.controller.js";
 
 const router = Router();
-console.log("🔥 costeo.routes.js cargado");
 
 const soloAdmin = [verifyAuth, allowRoles("superadmin", "admin", "contador")];
 
