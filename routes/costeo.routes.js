@@ -6,6 +6,7 @@ import * as prepCtrl from "../controllers/preparaciones.controller.js";
 const router = Router();
 
 const soloAdmin = [verifyAuth, allowRoles("superadmin", "admin", "contador")];
+// ICE QUEEN
 
 // ── Preparaciones (sub-recetas) ───────────────────────────────
 // IMPORTANTE: estas rutas van PRIMERO para que /preparaciones/:id
