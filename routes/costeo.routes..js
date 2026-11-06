@@ -1,12 +1,22 @@
 import { Router } from "express";
-// import { verifyAuth, allowRoles } from "../middleware/auth.middleware.js";
 import { verifyAuth, allowRoles } from "../middlewares/auth.middleware.js";
 import * as ctrl from "../controllers/costeo.controller.js";
+import * as prepCtrl from "../controllers/preparaciones.controller.js";
 
 const router = Router();
+console.log("🔥 costeo.routes.js cargado");
 
-// Todas las rutas requieren autenticación y rol admin o contador
-const soloAdmin = [verifyAuth, allowRoles("superadmin", "contador")];
+const soloAdmin = [verifyAuth, allowRoles("superadmin", "admin", "contador")];
+
+// ── Preparaciones (sub-recetas) ───────────────────────────────
+// IMPORTANTE: estas rutas van PRIMERO para que /preparaciones/:id
+// no sea capturado por rutas genéricas de abajo.
+router.get("/preparaciones", ...soloAdmin, prepCtrl.getAll);
+router.get("/preparaciones/:id/costo", ...soloAdmin, prepCtrl.getCosto);
+router.get("/preparaciones/:id", ...soloAdmin, prepCtrl.getOne);
+router.post("/preparaciones", ...soloAdmin, prepCtrl.create);
+router.put("/preparaciones/:id", ...soloAdmin, prepCtrl.update);
+router.delete("/preparaciones/:id", ...soloAdmin, prepCtrl.remove);
 
 // ── Ingredientes ──────────────────────────────────────────────
 router.get("/ingredientes", ...soloAdmin, ctrl.listarIngredientes);
@@ -29,13 +39,13 @@ router.delete("/bases/:id", ...soloAdmin, ctrl.eliminarBase);
 // ── Costos fijos ──────────────────────────────────────────────
 router.get("/costos-fijos", ...soloAdmin, ctrl.listarCostosFijos);
 router.post("/costos-fijos", ...soloAdmin, ctrl.crearCostoFijo);
-router.put("/costos-fijos/:id", ...soloAdmin, ctrl.editarCostoFijo);
-router.delete("/costos-fijos/:id", ...soloAdmin, ctrl.eliminarCostoFijo);
 router.put(
   "/costos-fijos/config/unidades-mes",
   ...soloAdmin,
   ctrl.actualizarUnidadesMes,
 );
+router.put("/costos-fijos/:id", ...soloAdmin, ctrl.editarCostoFijo);
+router.delete("/costos-fijos/:id", ...soloAdmin, ctrl.eliminarCostoFijo);
 
 // ── Recetas / costeo ──────────────────────────────────────────
 router.get("/recetas", ...soloAdmin, ctrl.listarRecetas);
@@ -43,7 +53,3 @@ router.get("/recetas/:helado_id", ...soloAdmin, ctrl.verReceta);
 router.post("/recetas/:helado_id", ...soloAdmin, ctrl.guardarReceta);
 
 export default router;
-
-// ── Registrar en app.js ───────────────────────────────────────
-// import costeoRoutes from "./routes/costeo.routes.js";
-// app.use("/api/costeo", costeoRoutes);

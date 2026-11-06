@@ -11,7 +11,7 @@ import publicRoutes from "./routes/public.routes.js";
 import usersRoutes from "./routes/users.routes.js";
 import bootstrapRoutes from "./routes/bootstrap.routes.js"; // 👈 NUEVO
 import costeoRoutes from "./routes/costeo.routes.js";
-import prepRoutes from "./routes/preparaciones.routes.js";
+// import prepRoutes from "./routes/preparaciones.routes.js";
 
 const app = express();
 
@@ -28,7 +28,7 @@ app.use("/reportes", reportesRoutes);
 app.use("/sedes", sedesRoutes);
 app.use("/api/public", publicRoutes);
 app.use("/users", usersRoutes);
-app.use("/api/costeo/preparaciones", prepRoutes);
+// app.use("/api/costeo/preparaciones", prepRoutes);
 app.use("/api/costeo", costeoRoutes);
 
 app.get("/", (req, res) => {
