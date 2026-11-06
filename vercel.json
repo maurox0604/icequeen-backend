@@ -1,13 +1,11 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
-
-  "functions": [
-    {
-      "api/index.js": {
-        "includeFiles": "routes/**"
-      }
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "routes/**"
     }
-  ],
+  },
   "routes": [
     {
       "src": "/(.*)",
@@ -18,7 +16,10 @@
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
         {
           "key": "Access-Control-Allow-Methods",
           "value": "GET,POST,PUT,DELETE,OPTIONS,PATCH"
