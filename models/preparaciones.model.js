@@ -1,6 +1,6 @@
 import { pool } from "../db/pool.js";
 
-export const getAll = async () => {
+export const listarPreparaciones = async () => {
   const [preps] = await pool.query(
     "SELECT * FROM costeo_preparaciones WHERE activo = 1 ORDER BY nombre",
   );
@@ -20,7 +20,7 @@ export const getAll = async () => {
   return preps;
 };
 
-export const getOne = async (id) => {
+export const obtenerPreparacion = async (id) => {
   const [rows] = await pool.query(
     "SELECT * FROM costeo_preparaciones WHERE id = ? AND activo = 1",
     [id],
@@ -41,62 +41,53 @@ export const getOne = async (id) => {
   return p;
 };
 
-export const create = async ({
+export const crearPreparacion = async ({
   nombre,
   descripcion,
   rendimiento_gr,
   unidad,
+  ingredientes = [],
 }) => {
   const [r] = await pool.query(
     "INSERT INTO costeo_preparaciones (nombre, descripcion, rendimiento_gr, unidad) VALUES (?, ?, ?, ?)",
     [nombre, descripcion ?? null, rendimiento_gr, unidad ?? "gr"],
   );
-  return r.insertId;
+  const id = r.insertId;
+  if (ingredientes.length) {
+    await _upsertIngredientes(id, ingredientes);
+  }
+  return obtenerPreparacion(id);
 };
 
-export const update = async (
+export const actualizarPreparacion = async (
   id,
-  { nombre, descripcion, rendimiento_gr, unidad },
+  { nombre, descripcion, rendimiento_gr, unidad, ingredientes },
 ) => {
   await pool.query(
     "UPDATE costeo_preparaciones SET nombre=?, descripcion=?, rendimiento_gr=?, unidad=? WHERE id=?",
     [nombre, descripcion ?? null, rendimiento_gr, unidad ?? "gr", id],
   );
+  if (ingredientes !== undefined) {
+    await _upsertIngredientes(id, ingredientes);
+  }
+  return obtenerPreparacion(id);
 };
 
-export const remove = async (id) => {
+export const eliminarPreparacion = async (id) => {
   await pool.query("UPDATE costeo_preparaciones SET activo = 0 WHERE id = ?", [
     id,
   ]);
 };
 
-export const upsertIngredientes = async (preparacion_id, ingredientes) => {
-  await pool.query(
-    "DELETE FROM costeo_preparacion_ingredientes WHERE preparacion_id = ?",
-    [preparacion_id],
-  );
-  if (!ingredientes || ingredientes.length === 0) return;
-  const values = ingredientes.map((i) => [
-    preparacion_id,
-    i.ingrediente_id ?? null,
-    i.prep_ingrediente_id ?? null,
-    i.cantidad,
-  ]);
-  await pool.query(
-    "INSERT INTO costeo_preparacion_ingredientes (preparacion_id, ingrediente_id, prep_ingrediente_id, cantidad) VALUES ?",
-    [values],
-  );
-};
-
-export const calcCosto = async (id) => {
-  const prep = await getOne(id);
+export const obtenerCostoPorGr = async (id) => {
+  const prep = await obtenerPreparacion(id);
   if (!prep) return null;
   let costo_total = 0;
   for (const item of prep.ingredientes) {
     if (item.ingrediente_id) {
       costo_total += Number(item.cantidad) * Number(item.precio_unidad ?? 0);
     } else if (item.prep_ingrediente_id) {
-      const sub = await calcCosto(item.prep_ingrediente_id);
+      const sub = await obtenerCostoPorGr(item.prep_ingrediente_id);
       const costo_por_gr =
         sub && sub.rendimiento_gr > 0
           ? sub.costo_total / sub.rendimiento_gr
@@ -110,4 +101,23 @@ export const calcCosto = async (id) => {
     costo_por_gr:
       prep.rendimiento_gr > 0 ? costo_total / prep.rendimiento_gr : 0,
   };
+};
+
+// helper interno
+const _upsertIngredientes = async (preparacion_id, ingredientes) => {
+  await pool.query(
+    "DELETE FROM costeo_preparacion_ingredientes WHERE preparacion_id = ?",
+    [preparacion_id],
+  );
+  if (!ingredientes.length) return;
+  const values = ingredientes.map((i) => [
+    preparacion_id,
+    i.ingrediente_id ?? null,
+    i.prep_ingrediente_id ?? null,
+    i.cantidad,
+  ]);
+  await pool.query(
+    "INSERT INTO costeo_preparacion_ingredientes (preparacion_id, ingrediente_id, prep_ingrediente_id, cantidad) VALUES ?",
+    [values],
+  );
 };
