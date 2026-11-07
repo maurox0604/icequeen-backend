@@ -166,11 +166,21 @@ export const actualizarUnidadesMes = async (req, res) => {
 };
 
 // ── RECETAS ───────────────────────────────────────────────────
+// export const listarRecetas = async (req, res) => {
+//   try {
+//     const data = await model.getRecetas();
+//     res.json(data);
+//   } catch (e) {
+//     res.status(500).json({ ok: false, message: e.message });
+//   }
+// };
+
 export const listarRecetas = async (req, res) => {
   try {
     const data = await model.getRecetas();
     res.json(data);
   } catch (e) {
+    console.error("ERROR getRecetas:", e.message, e.stack); // ← agrega esta línea
     res.status(500).json({ ok: false, message: e.message });
   }
 };
