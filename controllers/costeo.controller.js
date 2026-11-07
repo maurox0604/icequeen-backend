@@ -106,10 +106,10 @@ export const editarBase = async (req, res) => {
     }
     res.json({ ok: true });
   } catch (e) {
+    console.error("ERROR editarBase:", e.message); // ← agrega
     res.status(500).json({ ok: false, message: e.message });
   }
 };
-
 export const eliminarBase = async (req, res) => {
   try {
     await model.deleteBase(req.params.id);
