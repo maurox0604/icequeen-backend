@@ -5,33 +5,55 @@ import { pool } from "../db/pool.js";
 // ═══════════════════════════════════════════════════════════════
 export const getIngredientes = async () => {
   const [rows] = await pool.query(
-    "SELECT * FROM ingredientes WHERE activo = 1 ORDER BY nombre"
+    "SELECT * FROM ingredientes WHERE activo = 1 ORDER BY nombre",
   );
   return rows;
 };
 
-export const createIngrediente = async ({ nombre, unidad, precio_compra, cantidad_compra, proveedor }) => {
+export const createIngrediente = async ({
+  nombre,
+  unidad,
+  precio_compra,
+  cantidad_compra,
+  proveedor,
+}) => {
   // precio_unidad = precio por 1 gr/ml, calculado del total comprado
-  const precio_unidad = cantidad_compra > 0
-    ? Number(precio_compra) / Number(cantidad_compra)
-    : 0;
+  const precio_unidad =
+    cantidad_compra > 0 ? Number(precio_compra) / Number(cantidad_compra) : 0;
   const [result] = await pool.query(
     `INSERT INTO ingredientes (nombre, unidad, precio_unidad, precio_compra, cantidad_compra, proveedor)
      VALUES (?, ?, ?, ?, ?, ?)`,
-    [nombre, unidad, precio_unidad, precio_compra ?? null, cantidad_compra ?? null, proveedor ?? null]
+    [
+      nombre,
+      unidad,
+      precio_unidad,
+      precio_compra ?? null,
+      cantidad_compra ?? null,
+      proveedor ?? null,
+    ],
   );
   return result.insertId;
 };
 
-export const updateIngrediente = async (id, { nombre, unidad, precio_compra, cantidad_compra, proveedor }) => {
-  const precio_unidad = cantidad_compra > 0
-    ? Number(precio_compra) / Number(cantidad_compra)
-    : 0;
+export const updateIngrediente = async (
+  id,
+  { nombre, unidad, precio_compra, cantidad_compra, proveedor },
+) => {
+  const precio_unidad =
+    cantidad_compra > 0 ? Number(precio_compra) / Number(cantidad_compra) : 0;
   await pool.query(
     `UPDATE ingredientes
      SET nombre=?, unidad=?, precio_unidad=?, precio_compra=?, cantidad_compra=?, proveedor=?
      WHERE id=?`,
-    [nombre, unidad, precio_unidad, precio_compra ?? null, cantidad_compra ?? null, proveedor ?? null, id]
+    [
+      nombre,
+      unidad,
+      precio_unidad,
+      precio_compra ?? null,
+      cantidad_compra ?? null,
+      proveedor ?? null,
+      id,
+    ],
   );
 };
 
@@ -44,32 +66,51 @@ export const deleteIngrediente = async (id) => {
 // ═══════════════════════════════════════════════════════════════
 export const getPackaging = async () => {
   const [rows] = await pool.query(
-    "SELECT * FROM packaging WHERE activo = 1 ORDER BY tipo, nombre"
+    "SELECT * FROM packaging WHERE activo = 1 ORDER BY tipo, nombre",
   );
   return rows;
 };
 
-export const createPackaging = async ({ nombre, tipo, precio_compra, cantidad_compra }) => {
-  const precio_unidad = cantidad_compra > 0
-    ? Number(precio_compra) / Number(cantidad_compra)
-    : 0;
+export const createPackaging = async ({
+  nombre,
+  tipo,
+  precio_compra,
+  cantidad_compra,
+}) => {
+  const precio_unidad =
+    cantidad_compra > 0 ? Number(precio_compra) / Number(cantidad_compra) : 0;
   const [result] = await pool.query(
     `INSERT INTO packaging (nombre, tipo, precio_unidad, precio_compra, cantidad_compra)
      VALUES (?, ?, ?, ?, ?)`,
-    [nombre, tipo, precio_unidad, precio_compra ?? null, cantidad_compra ?? null]
+    [
+      nombre,
+      tipo,
+      precio_unidad,
+      precio_compra ?? null,
+      cantidad_compra ?? null,
+    ],
   );
   return result.insertId;
 };
 
-export const updatePackaging = async (id, { nombre, tipo, precio_compra, cantidad_compra }) => {
-  const precio_unidad = cantidad_compra > 0
-    ? Number(precio_compra) / Number(cantidad_compra)
-    : 0;
+export const updatePackaging = async (
+  id,
+  { nombre, tipo, precio_compra, cantidad_compra },
+) => {
+  const precio_unidad =
+    cantidad_compra > 0 ? Number(precio_compra) / Number(cantidad_compra) : 0;
   await pool.query(
     `UPDATE packaging
      SET nombre=?, tipo=?, precio_unidad=?, precio_compra=?, cantidad_compra=?
      WHERE id=?`,
-    [nombre, tipo, precio_unidad, precio_compra ?? null, cantidad_compra ?? null, id]
+    [
+      nombre,
+      tipo,
+      precio_unidad,
+      precio_compra ?? null,
+      cantidad_compra ?? null,
+      id,
+    ],
   );
 };
 
@@ -82,7 +123,7 @@ export const deletePackaging = async (id) => {
 // ═══════════════════════════════════════════════════════════════
 export const getBases = async () => {
   const [bases] = await pool.query(
-    "SELECT * FROM bases WHERE activo = 1 ORDER BY nombre"
+    "SELECT * FROM bases WHERE activo = 1 ORDER BY nombre",
   );
   for (const base of bases) {
     const [items] = await pool.query(
@@ -90,11 +131,12 @@ export const getBases = async () => {
        FROM base_ingredientes bi
        JOIN ingredientes i ON i.id = bi.ingrediente_id
        WHERE bi.base_id = ?`,
-      [base.id]
+      [base.id],
     );
     base.ingredientes = items;
     base.costo_tanda = items.reduce(
-      (sum, row) => sum + Number(row.cantidad) * Number(row.precio_unidad), 0
+      (sum, row) => sum + Number(row.cantidad) * Number(row.precio_unidad),
+      0,
     );
   }
   return bases;
@@ -104,16 +146,17 @@ export const getBases = async () => {
 export const createBase = async ({ nombre, descripcion }) => {
   const [result] = await pool.query(
     "INSERT INTO bases (nombre, descripcion) VALUES (?, ?)",
-    [nombre, descripcion ?? null]
+    [nombre, descripcion ?? null],
   );
   return result.insertId;
 };
 
 export const updateBase = async (id, { nombre, descripcion }) => {
-  await pool.query(
-    "UPDATE bases SET nombre=?, descripcion=? WHERE id=?",
-    [nombre, descripcion ?? null, id]
-  );
+  await pool.query("UPDATE bases SET nombre=?, descripcion=? WHERE id=?", [
+    nombre,
+    descripcion ?? null,
+    id,
+  ]);
 };
 
 export const deleteBase = async (id) => {
@@ -122,12 +165,18 @@ export const deleteBase = async (id) => {
 
 export const upsertBaseIngredientes = async (base_id, ingredientes) => {
   // ingredientes = [{ ingrediente_id, cantidad }]
-  await pool.query("DELETE FROM base_ingredientes WHERE base_id = ?", [base_id]);
+  await pool.query("DELETE FROM base_ingredientes WHERE base_id = ?", [
+    base_id,
+  ]);
   if (!ingredientes || ingredientes.length === 0) return;
-  const values = ingredientes.map((i) => [base_id, i.ingrediente_id, i.cantidad]);
+  const values = ingredientes.map((i) => [
+    base_id,
+    i.ingrediente_id,
+    i.cantidad,
+  ]);
   await pool.query(
     "INSERT INTO base_ingredientes (base_id, ingrediente_id, cantidad) VALUES ?",
-    [values]
+    [values],
   );
 };
 
@@ -136,10 +185,10 @@ export const upsertBaseIngredientes = async (base_id, ingredientes) => {
 // ═══════════════════════════════════════════════════════════════
 export const getCostosFijos = async () => {
   const [rows] = await pool.query(
-    "SELECT * FROM costos_fijos WHERE activo = 1 ORDER BY nombre"
+    "SELECT * FROM costos_fijos WHERE activo = 1 ORDER BY nombre",
   );
   const [config] = await pool.query(
-    "SELECT unidades_mes FROM config_produccion WHERE id = 1"
+    "SELECT unidades_mes FROM config_produccion WHERE id = 1",
   );
   const unidades_mes = config[0]?.unidades_mes ?? 1000;
   const total_mensual = rows.reduce((s, r) => s + Number(r.valor_mensual), 0);
@@ -154,7 +203,7 @@ export const getCostosFijos = async () => {
 export const createCostoFijo = async ({ nombre, valor_mensual }) => {
   const [result] = await pool.query(
     "INSERT INTO costos_fijos (nombre, valor_mensual) VALUES (?, ?)",
-    [nombre, valor_mensual]
+    [nombre, valor_mensual],
   );
   return result.insertId;
 };
@@ -162,7 +211,7 @@ export const createCostoFijo = async ({ nombre, valor_mensual }) => {
 export const updateCostoFijo = async (id, { nombre, valor_mensual }) => {
   await pool.query(
     "UPDATE costos_fijos SET nombre=?, valor_mensual=? WHERE id=?",
-    [nombre, valor_mensual, id]
+    [nombre, valor_mensual, id],
   );
 };
 
@@ -173,7 +222,7 @@ export const deleteCostoFijo = async (id) => {
 export const updateUnidadesMes = async (unidades_mes) => {
   await pool.query(
     "UPDATE config_produccion SET unidades_mes = ? WHERE id = 1",
-    [unidades_mes]
+    [unidades_mes],
   );
 };
 
@@ -182,25 +231,25 @@ export const updateUnidadesMes = async (unidades_mes) => {
 // ═══════════════════════════════════════════════════════════════
 export const getRecetas = async () => {
   const [recetas] = await pool.query(
-    `SELECT r.*, h.nombre AS helado_nombre, h.precio AS precio_venta,
+    `SELECT r.*, h.sabor AS helado_nombre, h.precio AS precio_venta,
             b.nombre AS base_nombre
      FROM recetas r
      LEFT JOIN helados h ON h.id = r.helado_id
      LEFT JOIN bases b   ON b.id = r.base_id
-     ORDER BY h.nombre`
+     ORDER BY h.sabor`,
   );
   return recetas;
 };
 
 export const getRecetaDetalle = async (helado_id) => {
   const [rows] = await pool.query(
-    `SELECT r.*, h.nombre AS helado_nombre, h.precio AS precio_venta,
+    `SELECT r.*, h.sabor AS helado_nombre, h.precio AS precio_venta,
             b.nombre AS base_nombre
      FROM recetas r
      LEFT JOIN helados h ON h.id = r.helado_id
      LEFT JOIN bases b   ON b.id = r.base_id
      WHERE r.helado_id = ?`,
-    [helado_id]
+    [helado_id],
   );
   if (!rows.length) return null;
 
@@ -212,7 +261,7 @@ export const getRecetaDetalle = async (helado_id) => {
      FROM receta_ingredientes ri
      JOIN ingredientes i ON i.id = ri.ingrediente_id
      WHERE ri.receta_id = ?`,
-    [receta.id]
+    [receta.id],
   );
   receta.ingredientes = ingredientes;
 
@@ -222,7 +271,7 @@ export const getRecetaDetalle = async (helado_id) => {
      FROM receta_packaging rp
      JOIN packaging p ON p.id = rp.packaging_id
      WHERE rp.receta_id = ?`,
-    [receta.id]
+    [receta.id],
   );
   receta.packaging = pkgs;
 
@@ -236,11 +285,12 @@ export const getRecetaDetalle = async (helado_id) => {
        FROM base_ingredientes bi
        JOIN ingredientes i ON i.id = bi.ingrediente_id
        WHERE bi.base_id = ?`,
-      [receta.base_id]
+      [receta.base_id],
     );
     base_ingredientes = bi;
     costo_base_tanda = bi.reduce(
-      (s, i) => s + Number(i.cantidad) * Number(i.precio_unidad), 0
+      (s, i) => s + Number(i.cantidad) * Number(i.precio_unidad),
+      0,
     );
     // rendimiento_ml guardado en la receta (volumen de la tanda de base)
     rendimiento_ml = Number(receta.volumen_base_ml ?? 0);
@@ -248,23 +298,25 @@ export const getRecetaDetalle = async (helado_id) => {
   receta.base_ingredientes = base_ingredientes;
 
   // ─── CÁLCULO DE COSTOS ───────────────────────────────────────
-  const costo_base_por_ml = rendimiento_ml > 0
-    ? costo_base_tanda / rendimiento_ml : 0;
+  const costo_base_por_ml =
+    rendimiento_ml > 0 ? costo_base_tanda / rendimiento_ml : 0;
   const costo_base = costo_base_por_ml * Number(receta.volumen_base_ml ?? 0);
 
   const costo_ingredientes = ingredientes.reduce(
-    (s, i) => s + Number(i.cantidad) * Number(i.precio_unidad), 0
+    (s, i) => s + Number(i.cantidad) * Number(i.precio_unidad),
+    0,
   );
 
   const costo_packaging = pkgs.reduce(
-    (s, p) => s + Number(p.cantidad) * Number(p.precio_unidad), 0
+    (s, p) => s + Number(p.cantidad) * Number(p.precio_unidad),
+    0,
   );
 
   const [cf] = await pool.query(
-    "SELECT SUM(valor_mensual) AS total FROM costos_fijos WHERE activo = 1"
+    "SELECT SUM(valor_mensual) AS total FROM costos_fijos WHERE activo = 1",
   );
   const [config] = await pool.query(
-    "SELECT unidades_mes FROM config_produccion WHERE id = 1"
+    "SELECT unidades_mes FROM config_produccion WHERE id = 1",
   );
   const total_fijos = Number(cf[0]?.total ?? 0);
   const unidades_mes = config[0]?.unidades_mes ?? 1000;
@@ -272,33 +324,50 @@ export const getRecetaDetalle = async (helado_id) => {
 
   const costo_mdo = Number(receta.mano_de_obra ?? 0);
 
-  const costo_total = costo_base + costo_ingredientes + costo_packaging
-    + costo_fijo_unit + costo_mdo;
+  const costo_total =
+    costo_base +
+    costo_ingredientes +
+    costo_packaging +
+    costo_fijo_unit +
+    costo_mdo;
   const precio_sugerido = costo_total * Number(receta.margen_ganancia ?? 2.5);
 
   receta.desglose = {
-    costo_base:         Math.round(costo_base),
+    costo_base: Math.round(costo_base),
     costo_ingredientes: Math.round(costo_ingredientes),
-    costo_packaging:    Math.round(costo_packaging),
-    costo_fijo_unit:    Math.round(costo_fijo_unit),
-    costo_mdo:          Math.round(costo_mdo),
-    costo_total:        Math.round(costo_total),
-    precio_sugerido:    Math.round(precio_sugerido),
+    costo_packaging: Math.round(costo_packaging),
+    costo_fijo_unit: Math.round(costo_fijo_unit),
+    costo_mdo: Math.round(costo_mdo),
+    costo_total: Math.round(costo_total),
+    precio_sugerido: Math.round(precio_sugerido),
     precio_venta_actual: Number(receta.precio_venta ?? 0),
-    margen_real_pct: receta.precio_venta > 0
-      ? (((receta.precio_venta - costo_total) / receta.precio_venta) * 100).toFixed(1)
-      : null,
+    margen_real_pct:
+      receta.precio_venta > 0
+        ? (
+            ((receta.precio_venta - costo_total) / receta.precio_venta) *
+            100
+          ).toFixed(1)
+        : null,
   };
 
   return receta;
 };
 
-export const upsertReceta = async (helado_id, {
-  base_id, volumen_base_ml, mano_de_obra, margen_ganancia, notas,
-  ingredientes = [], packaging = [],
-}) => {
+export const upsertReceta = async (
+  helado_id,
+  {
+    base_id,
+    volumen_base_ml,
+    mano_de_obra,
+    margen_ganancia,
+    notas,
+    ingredientes = [],
+    packaging = [],
+  },
+) => {
   const [existing] = await pool.query(
-    "SELECT id FROM recetas WHERE helado_id = ?", [helado_id]
+    "SELECT id FROM recetas WHERE helado_id = ?",
+    [helado_id],
   );
 
   let receta_id;
@@ -307,36 +376,56 @@ export const upsertReceta = async (helado_id, {
     await pool.query(
       `UPDATE recetas SET base_id=?, volumen_base_ml=?, mano_de_obra=?,
        margen_ganancia=?, notas=? WHERE id=?`,
-      [base_id ?? null, volumen_base_ml ?? 0, mano_de_obra ?? 0,
-       margen_ganancia ?? 2.5, notas ?? null, receta_id]
+      [
+        base_id ?? null,
+        volumen_base_ml ?? 0,
+        mano_de_obra ?? 0,
+        margen_ganancia ?? 2.5,
+        notas ?? null,
+        receta_id,
+      ],
     );
   } else {
     const [result] = await pool.query(
       `INSERT INTO recetas (helado_id, base_id, volumen_base_ml, mano_de_obra, margen_ganancia, notas)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [helado_id, base_id ?? null, volumen_base_ml ?? 0, mano_de_obra ?? 0,
-       margen_ganancia ?? 2.5, notas ?? null]
+      [
+        helado_id,
+        base_id ?? null,
+        volumen_base_ml ?? 0,
+        mano_de_obra ?? 0,
+        margen_ganancia ?? 2.5,
+        notas ?? null,
+      ],
     );
     receta_id = result.insertId;
   }
 
   // Ingredientes
-  await pool.query("DELETE FROM receta_ingredientes WHERE receta_id = ?", [receta_id]);
+  await pool.query("DELETE FROM receta_ingredientes WHERE receta_id = ?", [
+    receta_id,
+  ]);
   if (ingredientes.length) {
-    const vals = ingredientes.map((i) => [receta_id, i.ingrediente_id, i.cantidad]);
+    const vals = ingredientes.map((i) => [
+      receta_id,
+      i.ingrediente_id,
+      i.cantidad,
+    ]);
     await pool.query(
       "INSERT INTO receta_ingredientes (receta_id, ingrediente_id, cantidad) VALUES ?",
-      [vals]
+      [vals],
     );
   }
 
   // Packaging
-  await pool.query("DELETE FROM receta_packaging WHERE receta_id = ?", [receta_id]);
+  await pool.query("DELETE FROM receta_packaging WHERE receta_id = ?", [
+    receta_id,
+  ]);
   if (packaging.length) {
     const vals = packaging.map((p) => [receta_id, p.packaging_id, p.cantidad]);
     await pool.query(
       "INSERT INTO receta_packaging (receta_id, packaging_id, cantidad) VALUES ?",
-      [vals]
+      [vals],
     );
   }
 
