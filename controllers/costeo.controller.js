@@ -86,8 +86,8 @@ export const listarBases = async (req, res) => {
 
 export const crearBase = async (req, res) => {
   try {
-    const { nombre, tipo, rendimiento_ml, notas, ingredientes = [] } = req.body;
-    const id = await model.createBase({ nombre, tipo, rendimiento_ml, notas });
+    const { nombre, descripcion, ingredientes = [] } = req.body;
+    const id = await model.createBase({ nombre, descripcion });
     if (ingredientes.length) {
       await model.upsertBaseIngredientes(id, ingredientes);
     }
@@ -99,8 +99,8 @@ export const crearBase = async (req, res) => {
 
 export const editarBase = async (req, res) => {
   try {
-    const { nombre, tipo, rendimiento_ml, notas, ingredientes } = req.body;
-    await model.updateBase(req.params.id, { nombre, tipo, rendimiento_ml, notas });
+    const { nombre, descripcion, ingredientes } = req.body;
+    await model.updateBase(req.params.id, { nombre, descripcion });
     if (ingredientes !== undefined) {
       await model.upsertBaseIngredientes(req.params.id, ingredientes);
     }
@@ -178,7 +178,10 @@ export const listarRecetas = async (req, res) => {
 export const verReceta = async (req, res) => {
   try {
     const data = await model.getRecetaDetalle(req.params.helado_id);
-    if (!data) return res.status(404).json({ ok: false, message: "Receta no encontrada" });
+    if (!data)
+      return res
+        .status(404)
+        .json({ ok: false, message: "Receta no encontrada" });
     res.json(data);
   } catch (e) {
     res.status(500).json({ ok: false, message: e.message });
