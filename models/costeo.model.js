@@ -265,6 +265,31 @@ export const getRecetaDetalle = async (helado_id) => {
   );
   receta.ingredientes = ingredientes;
 
+  // Preparaciones de la receta
+  const [preparaciones] = await pool.query(
+    `SELECT rp.*, cp.nombre, cp.unidad, cp.rendimiento_gr
+     FROM receta_preparaciones rp
+     JOIN costeo_preparaciones cp ON cp.id = rp.prep_id
+     WHERE rp.receta_id = ?`,
+    [receta.id],
+  );
+  // Calcular costo_por_gr de cada preparación
+  for (const p of preparaciones) {
+    const [items] = await pool.query(
+      `SELECT cpi.cantidad, i.precio_unidad
+       FROM costeo_preparacion_ingredientes cpi
+       JOIN ingredientes i ON i.id = cpi.ingrediente_id
+       WHERE cpi.preparacion_id = ? AND cpi.ingrediente_id IS NOT NULL`,
+      [p.prep_id],
+    );
+    const costo_tanda = items.reduce(
+      (s, it) => s + Number(it.cantidad) * Number(it.precio_unidad),
+      0,
+    );
+    p.costo_por_gr = p.rendimiento_gr > 0 ? costo_tanda / p.rendimiento_gr : 0;
+  }
+  receta.preparaciones = preparaciones;
+
   // Packaging de la receta
   const [pkgs] = await pool.query(
     `SELECT rp.*, p.nombre, p.tipo, p.precio_unidad
@@ -278,7 +303,6 @@ export const getRecetaDetalle = async (helado_id) => {
   // Ingredientes de la base
   let base_ingredientes = [];
   let costo_base_tanda = 0;
-  let rendimiento_ml = 0;
   if (receta.base_id) {
     const [bi] = await pool.query(
       `SELECT bi.*, i.nombre, i.unidad, i.precio_unidad
@@ -292,18 +316,26 @@ export const getRecetaDetalle = async (helado_id) => {
       (s, i) => s + Number(i.cantidad) * Number(i.precio_unidad),
       0,
     );
-    // rendimiento_ml guardado en la receta (volumen de la tanda de base)
-    rendimiento_ml = Number(receta.volumen_base_ml ?? 0);
   }
   receta.base_ingredientes = base_ingredientes;
 
   // ─── CÁLCULO DE COSTOS ───────────────────────────────────────
-  const costo_base_por_ml =
-    rendimiento_ml > 0 ? costo_base_tanda / rendimiento_ml : 0;
-  const costo_base = costo_base_por_ml * Number(receta.volumen_base_ml ?? 0);
+  // La base se mide en gr (volumen_base_ml guardado = gramos reales)
+  const total_gr_base = base_ingredientes.reduce(
+    (s, i) => s + Number(i.cantidad),
+    0,
+  );
+  const costo_base_por_gr =
+    total_gr_base > 0 ? costo_base_tanda / total_gr_base : 0;
+  const costo_base = costo_base_por_gr * Number(receta.volumen_base_ml ?? 0);
 
   const costo_ingredientes = ingredientes.reduce(
     (s, i) => s + Number(i.cantidad) * Number(i.precio_unidad),
+    0,
+  );
+
+  const costo_preparaciones = preparaciones.reduce(
+    (s, p) => s + Number(p.cantidad) * Number(p.costo_por_gr),
     0,
   );
 
@@ -327,6 +359,7 @@ export const getRecetaDetalle = async (helado_id) => {
   const costo_total =
     costo_base +
     costo_ingredientes +
+    costo_preparaciones +
     costo_packaging +
     costo_fijo_unit +
     costo_mdo;
@@ -335,6 +368,7 @@ export const getRecetaDetalle = async (helado_id) => {
   receta.desglose = {
     costo_base: Math.round(costo_base),
     costo_ingredientes: Math.round(costo_ingredientes),
+    costo_preparaciones: Math.round(costo_preparaciones),
     costo_packaging: Math.round(costo_packaging),
     costo_fijo_unit: Math.round(costo_fijo_unit),
     costo_mdo: Math.round(costo_mdo),
@@ -362,6 +396,7 @@ export const upsertReceta = async (
     margen_ganancia,
     notas,
     ingredientes = [],
+    preparaciones = [],
     packaging = [],
   },
 ) => {
@@ -413,6 +448,18 @@ export const upsertReceta = async (
     ]);
     await pool.query(
       "INSERT INTO receta_ingredientes (receta_id, ingrediente_id, cantidad) VALUES ?",
+      [vals],
+    );
+  }
+
+  // Preparaciones
+  await pool.query("DELETE FROM receta_preparaciones WHERE receta_id = ?", [
+    receta_id,
+  ]);
+  if (preparaciones && preparaciones.length) {
+    const vals = preparaciones.map((p) => [receta_id, p.prep_id, p.cantidad]);
+    await pool.query(
+      "INSERT INTO receta_preparaciones (receta_id, prep_id, cantidad) VALUES ?",
       [vals],
     );
   }
