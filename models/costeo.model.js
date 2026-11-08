@@ -229,16 +229,18 @@ export const updateUnidadesMes = async (unidades_mes) => {
 // ═══════════════════════════════════════════════════════════════
 // RECETAS
 // ═══════════════════════════════════════════════════════════════
+
 export const getRecetas = async () => {
-  const [recetas] = await pool.query(
-    `SELECT r.*, h.sabor AS helado_nombre, h.precio AS precio_venta,
+  const [rows] = await pool.query(
+    `SELECT h.id, h.sabor AS helado_nombre, h.precio AS precio_venta,
+            r.id AS receta_id, r.base_id, r.costo_total,
             b.nombre AS base_nombre
-     FROM recetas r
-     LEFT JOIN helados h ON h.id = r.helado_id
+     FROM helados h
+     LEFT JOIN recetas r ON r.helado_id = h.id
      LEFT JOIN bases b   ON b.id = r.base_id
      ORDER BY h.sabor`,
   );
-  return recetas;
+  return rows;
 };
 
 export const getRecetaDetalle = async (helado_id) => {
