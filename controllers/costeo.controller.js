@@ -1,5 +1,9 @@
 import * as model from "../models/costeo.model.js";
 
+// Los errores del modelo traen .status (400/404/409); el resto es 500.
+const fail = (res, e) =>
+  res.status(e.status ?? 500).json({ ok: false, message: e.message });
+
 // ── INGREDIENTES ──────────────────────────────────────────────
 export const listarIngredientes = async (req, res) => {
   try {
@@ -86,36 +90,29 @@ export const listarBases = async (req, res) => {
 
 export const crearBase = async (req, res) => {
   try {
-    const { nombre, descripcion, ingredientes = [] } = req.body;
-    const id = await model.createBase({ nombre, descripcion });
-    if (ingredientes.length) {
-      await model.upsertBaseIngredientes(id, ingredientes);
-    }
+    const id = await model.createBase(req.body);
     res.status(201).json({ ok: true, id });
   } catch (e) {
-    res.status(500).json({ ok: false, message: e.message });
+    fail(res, e);
   }
 };
 
 export const editarBase = async (req, res) => {
   try {
-    const { nombre, descripcion, ingredientes } = req.body;
-    await model.updateBase(req.params.id, { nombre, descripcion });
-    if (ingredientes !== undefined) {
-      await model.upsertBaseIngredientes(req.params.id, ingredientes);
-    }
+    await model.updateBase(req.params.id, req.body);
     res.json({ ok: true });
   } catch (e) {
-    console.error("ERROR editarBase:", e.message); // ← agrega
-    res.status(500).json({ ok: false, message: e.message });
+    console.error("ERROR editarBase:", e.message);
+    fail(res, e);
   }
 };
+
 export const eliminarBase = async (req, res) => {
   try {
     await model.deleteBase(req.params.id);
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ ok: false, message: e.message });
+    fail(res, e);
   }
 };
 
@@ -166,22 +163,13 @@ export const actualizarUnidadesMes = async (req, res) => {
 };
 
 // ── RECETAS ───────────────────────────────────────────────────
-// export const listarRecetas = async (req, res) => {
-//   try {
-//     const data = await model.getRecetas();
-//     res.json(data);
-//   } catch (e) {
-//     res.status(500).json({ ok: false, message: e.message });
-//   }
-// };
-
 export const listarRecetas = async (req, res) => {
   try {
     const data = await model.getRecetas();
     res.json(data);
   } catch (e) {
-    console.error("ERROR getRecetas:", e.message, e.stack); // ← agrega esta línea
-    res.status(500).json({ ok: false, message: e.message });
+    console.error("ERROR getRecetas:", e.message);
+    fail(res, e);
   }
 };
 
@@ -194,15 +182,19 @@ export const verReceta = async (req, res) => {
         .json({ ok: false, message: "Receta no encontrada" });
     res.json(data);
   } catch (e) {
-    res.status(500).json({ ok: false, message: e.message });
+    fail(res, e);
   }
 };
 
 export const guardarReceta = async (req, res) => {
   try {
-    const id = await model.upsertReceta(req.params.helado_id, req.body);
-    res.json({ ok: true, receta_id: id });
+    const { receta_id, costo_total } = await model.upsertReceta(
+      req.params.helado_id,
+      req.body,
+    );
+    res.json({ ok: true, receta_id, costo_total });
   } catch (e) {
-    res.status(500).json({ ok: false, message: e.message });
+    console.error("ERROR guardarReceta:", e.message);
+    fail(res, e);
   }
 };

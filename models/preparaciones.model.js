@@ -1,10 +1,73 @@
 import { pool } from "../db/pool.js";
 
+// Costo de TODAS las preparaciones activas en 2 consultas (soporta
+// preparaciones dentro de preparaciones, con protección contra ciclos).
+// `db` puede ser el pool o una conexión de una transacción abierta.
+// → Map(id → { costo_total, costo_por_gr })
+export const calcularCostosPreparaciones = async (db = pool) => {
+  const [preps] = await db.query(
+    "SELECT id, rendimiento_gr FROM costeo_preparaciones WHERE activo = 1",
+  );
+  const [items] = await db.query(
+    `SELECT cpi.preparacion_id, cpi.ingrediente_id, cpi.prep_ingrediente_id,
+            cpi.cantidad, i.precio_unidad
+     FROM costeo_preparacion_ingredientes cpi
+     LEFT JOIN ingredientes i ON i.id = cpi.ingrediente_id`,
+  );
+
+  const rendimiento = new Map(
+    preps.map((p) => [p.id, Number(p.rendimiento_gr)]),
+  );
+  const porPrep = new Map();
+  for (const it of items) {
+    if (!porPrep.has(it.preparacion_id)) porPrep.set(it.preparacion_id, []);
+    porPrep.get(it.preparacion_id).push(it);
+  }
+
+  const memo = new Map();
+  const visitando = new Set();
+
+  const costoTotal = (id) => {
+    if (memo.has(id)) return memo.get(id);
+    if (visitando.has(id)) return 0; // ciclo: se corta
+    visitando.add(id);
+    let total = 0;
+    for (const it of porPrep.get(id) ?? []) {
+      const cant = Number(it.cantidad);
+      if (it.ingrediente_id) {
+        total += cant * Number(it.precio_unidad ?? 0);
+      } else if (
+        it.prep_ingrediente_id &&
+        rendimiento.has(it.prep_ingrediente_id)
+      ) {
+        total += cant * costoPorGr(it.prep_ingrediente_id);
+      }
+    }
+    visitando.delete(id);
+    memo.set(id, total);
+    return total;
+  };
+
+  const costoPorGr = (id) => {
+    const r = rendimiento.get(id);
+    return r > 0 ? costoTotal(id) / r : 0;
+  };
+
+  const out = new Map();
+  for (const id of rendimiento.keys()) {
+    out.set(id, { costo_total: costoTotal(id), costo_por_gr: costoPorGr(id) });
+  }
+  return out;
+};
+
 export const listarPreparaciones = async () => {
   const [preps] = await pool.query(
     "SELECT * FROM costeo_preparaciones WHERE activo = 1 ORDER BY nombre",
   );
+  const costos = await calcularCostosPreparaciones();
   for (const p of preps) {
+    p.costo_total = costos.get(p.id)?.costo_total ?? 0;
+    p.costo_por_gr = costos.get(p.id)?.costo_por_gr ?? 0;
     const [items] = await pool.query(
       `SELECT cpi.*,
               i.nombre  AS ingr_nombre,  i.unidad,          i.precio_unidad,
