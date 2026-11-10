@@ -1,177 +1,104 @@
 import * as model from "../models/costeo.model.js";
 
-// Los errores del modelo traen .status (400/404/409); el resto es 500.
-const fail = (res, e) =>
-  res.status(e.status ?? 500).json({ ok: false, message: e.message });
+// Los errores del modelo traen .status (400 validación · 404 no existe ·
+// 409 conflicto/en uso); cualquier otro es un 500 y queda en el log del servidor.
+const fail = (res, e, donde) => {
+  const status = e.status ?? 500;
+  if (status >= 500) console.error(`ERROR ${donde}:`, e.message);
+  res.status(status).json({ ok: false, message: e.message });
+};
+
+// handler(req) → cuerpo de la respuesta. `created` → 201.
+const wrap =
+  (donde, handler, { created = false } = {}) =>
+  async (req, res) => {
+    try {
+      const body = await handler(req);
+      res.status(created ? 201 : 200).json(body);
+    } catch (e) {
+      fail(res, e, donde);
+    }
+  };
 
 // ── INGREDIENTES ──────────────────────────────────────────────
-export const listarIngredientes = async (req, res) => {
-  try {
-    const data = await model.getIngredientes();
-    res.json(data);
-  } catch (e) {
-    res.status(500).json({ ok: false, message: e.message });
-  }
-};
-
-export const crearIngrediente = async (req, res) => {
-  try {
-    const id = await model.createIngrediente(req.body);
-    res.status(201).json({ ok: true, id });
-  } catch (e) {
-    res.status(500).json({ ok: false, message: e.message });
-  }
-};
-
-export const editarIngrediente = async (req, res) => {
-  try {
-    await model.updateIngrediente(req.params.id, req.body);
-    res.json({ ok: true });
-  } catch (e) {
-    res.status(500).json({ ok: false, message: e.message });
-  }
-};
-
-export const eliminarIngrediente = async (req, res) => {
-  try {
-    await model.deleteIngrediente(req.params.id);
-    res.json({ ok: true });
-  } catch (e) {
-    res.status(500).json({ ok: false, message: e.message });
-  }
-};
+export const listarIngredientes = wrap("listarIngredientes", () =>
+  model.getIngredientes(),
+);
+export const crearIngrediente = wrap(
+  "crearIngrediente",
+  async (req) => ({ ok: true, id: await model.createIngrediente(req.body) }),
+  { created: true },
+);
+export const editarIngrediente = wrap("editarIngrediente", async (req) => {
+  await model.updateIngrediente(req.params.id, req.body);
+  return { ok: true };
+});
+export const eliminarIngrediente = wrap("eliminarIngrediente", async (req) => {
+  await model.deleteIngrediente(req.params.id);
+  return { ok: true };
+});
 
 // ── PACKAGING ─────────────────────────────────────────────────
-export const listarPackaging = async (req, res) => {
-  try {
-    const data = await model.getPackaging();
-    res.json(data);
-  } catch (e) {
-    res.status(500).json({ ok: false, message: e.message });
-  }
-};
-
-export const crearPackaging = async (req, res) => {
-  try {
-    const id = await model.createPackaging(req.body);
-    res.status(201).json({ ok: true, id });
-  } catch (e) {
-    res.status(500).json({ ok: false, message: e.message });
-  }
-};
-
-export const editarPackaging = async (req, res) => {
-  try {
-    await model.updatePackaging(req.params.id, req.body);
-    res.json({ ok: true });
-  } catch (e) {
-    res.status(500).json({ ok: false, message: e.message });
-  }
-};
-
-export const eliminarPackaging = async (req, res) => {
-  try {
-    await model.deletePackaging(req.params.id);
-    res.json({ ok: true });
-  } catch (e) {
-    res.status(500).json({ ok: false, message: e.message });
-  }
-};
+export const listarPackaging = wrap("listarPackaging", () =>
+  model.getPackaging(),
+);
+export const crearPackaging = wrap(
+  "crearPackaging",
+  async (req) => ({ ok: true, id: await model.createPackaging(req.body) }),
+  { created: true },
+);
+export const editarPackaging = wrap("editarPackaging", async (req) => {
+  await model.updatePackaging(req.params.id, req.body);
+  return { ok: true };
+});
+export const eliminarPackaging = wrap("eliminarPackaging", async (req) => {
+  await model.deletePackaging(req.params.id);
+  return { ok: true };
+});
 
 // ── BASES ─────────────────────────────────────────────────────
-export const listarBases = async (req, res) => {
-  try {
-    const data = await model.getBases();
-    res.json(data);
-  } catch (e) {
-    res.status(500).json({ ok: false, message: e.message });
-  }
-};
-
-export const crearBase = async (req, res) => {
-  try {
-    const id = await model.createBase(req.body);
-    res.status(201).json({ ok: true, id });
-  } catch (e) {
-    fail(res, e);
-  }
-};
-
-export const editarBase = async (req, res) => {
-  try {
-    await model.updateBase(req.params.id, req.body);
-    res.json({ ok: true });
-  } catch (e) {
-    console.error("ERROR editarBase:", e.message);
-    fail(res, e);
-  }
-};
-
-export const eliminarBase = async (req, res) => {
-  try {
-    await model.deleteBase(req.params.id);
-    res.json({ ok: true });
-  } catch (e) {
-    fail(res, e);
-  }
-};
+export const listarBases = wrap("listarBases", () => model.getBases());
+export const crearBase = wrap(
+  "crearBase",
+  async (req) => ({ ok: true, id: await model.createBase(req.body) }),
+  { created: true },
+);
+export const editarBase = wrap("editarBase", async (req) => {
+  await model.updateBase(req.params.id, req.body);
+  return { ok: true };
+});
+export const eliminarBase = wrap("eliminarBase", async (req) => {
+  await model.deleteBase(req.params.id);
+  return { ok: true };
+});
 
 // ── COSTOS FIJOS ──────────────────────────────────────────────
-export const listarCostosFijos = async (req, res) => {
-  try {
-    const data = await model.getCostosFijos();
-    res.json(data);
-  } catch (e) {
-    res.status(500).json({ ok: false, message: e.message });
-  }
-};
-
-export const crearCostoFijo = async (req, res) => {
-  try {
-    const id = await model.createCostoFijo(req.body);
-    res.status(201).json({ ok: true, id });
-  } catch (e) {
-    res.status(500).json({ ok: false, message: e.message });
-  }
-};
-
-export const editarCostoFijo = async (req, res) => {
-  try {
-    await model.updateCostoFijo(req.params.id, req.body);
-    res.json({ ok: true });
-  } catch (e) {
-    res.status(500).json({ ok: false, message: e.message });
-  }
-};
-
-export const eliminarCostoFijo = async (req, res) => {
-  try {
-    await model.deleteCostoFijo(req.params.id);
-    res.json({ ok: true });
-  } catch (e) {
-    res.status(500).json({ ok: false, message: e.message });
-  }
-};
-
-export const actualizarUnidadesMes = async (req, res) => {
-  try {
-    await model.updateUnidadesMes(req.body.unidades_mes);
-    res.json({ ok: true });
-  } catch (e) {
-    res.status(500).json({ ok: false, message: e.message });
-  }
-};
+export const listarCostosFijos = wrap("listarCostosFijos", () =>
+  model.getCostosFijos(),
+);
+export const crearCostoFijo = wrap(
+  "crearCostoFijo",
+  async (req) => ({ ok: true, id: await model.createCostoFijo(req.body) }),
+  { created: true },
+);
+export const editarCostoFijo = wrap("editarCostoFijo", async (req) => {
+  await model.updateCostoFijo(req.params.id, req.body);
+  return { ok: true };
+});
+export const eliminarCostoFijo = wrap("eliminarCostoFijo", async (req) => {
+  await model.deleteCostoFijo(req.params.id);
+  return { ok: true };
+});
+export const actualizarUnidadesMes = wrap(
+  "actualizarUnidadesMes",
+  async (req) => {
+    await model.updateUnidadesMes(req.body?.unidades_mes);
+    return { ok: true };
+  },
+);
 
 // ── RECETAS ───────────────────────────────────────────────────
-export const listarRecetas = async (req, res) => {
-  try {
-    const data = await model.getRecetas();
-    res.json(data);
-  } catch (e) {
-    console.error("ERROR getRecetas:", e.message);
-    fail(res, e);
-  }
-};
+export const listarRecetas = wrap("listarRecetas", () => model.getRecetas());
 
 export const verReceta = async (req, res) => {
   try {
@@ -182,19 +109,14 @@ export const verReceta = async (req, res) => {
         .json({ ok: false, message: "Receta no encontrada" });
     res.json(data);
   } catch (e) {
-    fail(res, e);
+    fail(res, e, "verReceta");
   }
 };
 
-export const guardarReceta = async (req, res) => {
-  try {
-    const { receta_id, costo_total } = await model.upsertReceta(
-      req.params.helado_id,
-      req.body,
-    );
-    res.json({ ok: true, receta_id, costo_total });
-  } catch (e) {
-    console.error("ERROR guardarReceta:", e.message);
-    fail(res, e);
-  }
-};
+export const guardarReceta = wrap("guardarReceta", async (req) => {
+  const { receta_id, costo_total } = await model.upsertReceta(
+    req.params.helado_id,
+    req.body,
+  );
+  return { ok: true, receta_id, costo_total };
+});

@@ -1,44 +1,49 @@
 // controllers/preparaciones.controller.js
 import * as model from "../models/preparaciones.model.js";
 
+// Los errores del modelo traen .status (400 validación · 404 no existe ·
+// 409 en uso). Se responde con { ok:false, message } (y `error` por
+// compatibilidad con código anterior).
+const fail = (res, e, donde) => {
+  const status = e.status ?? 500;
+  if (status >= 500) console.error(`ERROR preparaciones.${donde}:`, e);
+  res.status(status).json({ ok: false, message: e.message, error: e.message });
+};
+
 export async function getAll(req, res) {
   try {
-    const data = await model.listarPreparaciones();
-    res.json(data);
+    res.json(await model.listarPreparaciones());
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
+    fail(res, e, "getAll");
   }
 }
 
 export async function getOne(req, res) {
   try {
     const item = await model.obtenerPreparacion(req.params.id);
-    if (!item) return res.status(404).json({ error: "No encontrada" });
+    if (!item)
+      return res
+        .status(404)
+        .json({ ok: false, message: "No encontrada", error: "No encontrada" });
     res.json(item);
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
+    fail(res, e, "getOne");
   }
 }
 
 export async function create(req, res) {
   try {
-    const item = await model.crearPreparacion(req.body);
-    res.status(201).json(item);
+    res.status(201).json(await model.crearPreparacion(req.body));
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
+    fail(res, e, "create");
   }
 }
 
 export async function update(req, res) {
   try {
-    const item = await model.actualizarPreparacion(req.params.id, req.body);
-    res.json(item);
+    res.json(await model.actualizarPreparacion(req.params.id, req.body));
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
+    fail(res, e, "update");
   }
 }
 
@@ -47,17 +52,19 @@ export async function remove(req, res) {
     await model.eliminarPreparacion(req.params.id);
     res.json({ ok: true });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
+    fail(res, e, "remove");
   }
 }
 
 export async function getCosto(req, res) {
   try {
     const costo = await model.obtenerCostoPorGr(req.params.id);
+    if (!costo)
+      return res
+        .status(404)
+        .json({ ok: false, message: "No encontrada", error: "No encontrada" });
     res.json(costo);
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
+    fail(res, e, "getCosto");
   }
 }

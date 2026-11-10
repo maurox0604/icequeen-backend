@@ -28,6 +28,61 @@ const normalizarLineas = (arr, idKey, etiqueta, cantKey = "cantidad") => {
 };
 
 // ═══════════════════════════════════════════════════════════════
+// UTILIDADES COMUNES (catálogos)
+// ═══════════════════════════════════════════════════════════════
+const UNIDADES = ["gr", "ml", "unidad"];
+const CATEGORIAS = ["base", "fruta", "topping", "otro"];
+// Debe coincidir con el ENUM de packaging.tipo (ver migracion_costeo_2.sql)
+const TIPOS_PACKAGING = [
+  "vaso",
+  "cono",
+  "tapa",
+  "cuchara",
+  "palito",
+  "servilleta",
+  "bolsa",
+  "bolsa_papel",
+  "bolsa_plastico",
+  "sticker",
+  "otro",
+];
+
+// "A, B, C y 2 más"
+const listaCorta = (arr, max = 4) => {
+  const nombres = [...new Set(arr)];
+  if (nombres.length <= max) return nombres.join(", ");
+  return `${nombres.slice(0, max).join(", ")} y ${nombres.length - max} más`;
+};
+
+// `tabla` es siempre una constante interna (nunca viene del usuario).
+// La comparación ignora mayúsculas y tildes (collation _ai_ci).
+const asegurarNombreLibre = async (db, tabla, nombre, idActual = 0) => {
+  const [dup] = await db.query(
+    `SELECT id, nombre FROM ${tabla} WHERE nombre = ? AND activo = 1 AND id <> ?`,
+    [nombre, idActual],
+  );
+  if (dup.length)
+    throw httpError(
+      409,
+      `Ya existe "${dup[0].nombre}". Edítalo en lugar de crear otro igual`,
+    );
+};
+
+// precio por 1 gr/ml/unidad = total pagado / cantidad comprada
+const calcularPrecioUnidad = (precio_compra, cantidad_compra) => {
+  const p = Number(precio_compra);
+  const c = Number(cantidad_compra);
+  if (!(p >= 0)) throw httpError(400, "El precio de compra no es válido");
+  if (!(c > 0)) throw httpError(400, "La cantidad comprada debe ser mayor a 0");
+  return p / c;
+};
+
+const textoOpcional = (v) => {
+  const t = v == null ? "" : String(v).trim();
+  return t === "" ? null : t;
+};
+
+// ═══════════════════════════════════════════════════════════════
 // INGREDIENTES
 // ═══════════════════════════════════════════════════════════════
 export const getIngredientes = async () => {
@@ -37,54 +92,107 @@ export const getIngredientes = async () => {
   return rows;
 };
 
-export const createIngrediente = async ({
-  nombre,
-  unidad,
-  precio_compra,
-  cantidad_compra,
-  proveedor,
-}) => {
-  // precio_unidad = precio por 1 gr/ml, calculado del total comprado
-  const precio_unidad =
-    cantidad_compra > 0 ? Number(precio_compra) / Number(cantidad_compra) : 0;
+// categoria: undefined = no cambiar (al editar) / 'otro' (al crear)
+const validarIngrediente = (d = {}) => {
+  const nombre = String(d.nombre ?? "").trim();
+  if (!nombre) throw httpError(400, "El nombre del ingrediente es obligatorio");
+  const unidad = d.unidad ?? "gr";
+  if (!UNIDADES.includes(unidad)) throw httpError(400, "Unidad inválida");
+  const categoria = d.categoria ?? null;
+  if (categoria !== null && !CATEGORIAS.includes(categoria))
+    throw httpError(400, "Categoría inválida");
+  return {
+    nombre,
+    unidad,
+    categoria,
+    precio_unidad: calcularPrecioUnidad(d.precio_compra, d.cantidad_compra),
+    precio_compra: Number(d.precio_compra),
+    cantidad_compra: Number(d.cantidad_compra),
+    proveedor: textoOpcional(d.proveedor),
+  };
+};
+
+export const createIngrediente = async (data) => {
+  const d = validarIngrediente(data);
+  await asegurarNombreLibre(pool, "ingredientes", d.nombre);
   const [result] = await pool.query(
-    `INSERT INTO ingredientes (nombre, unidad, precio_unidad, precio_compra, cantidad_compra, proveedor)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO ingredientes
+       (nombre, unidad, categoria, precio_unidad, precio_compra, cantidad_compra, proveedor)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [
-      nombre,
-      unidad,
-      precio_unidad,
-      precio_compra ?? null,
-      cantidad_compra ?? null,
-      proveedor ?? null,
+      d.nombre,
+      d.unidad,
+      d.categoria ?? "otro",
+      d.precio_unidad,
+      d.precio_compra,
+      d.cantidad_compra,
+      d.proveedor,
     ],
   );
   return result.insertId;
 };
 
-export const updateIngrediente = async (
-  id,
-  { nombre, unidad, precio_compra, cantidad_compra, proveedor },
-) => {
-  const precio_unidad =
-    cantidad_compra > 0 ? Number(precio_compra) / Number(cantidad_compra) : 0;
+export const updateIngrediente = async (id, data) => {
+  const d = validarIngrediente(data);
+  const [existe] = await pool.query(
+    "SELECT id FROM ingredientes WHERE id = ? AND activo = 1",
+    [id],
+  );
+  if (!existe.length) throw httpError(404, "Ingrediente no encontrado");
+  await asegurarNombreLibre(pool, "ingredientes", d.nombre, Number(id));
   await pool.query(
     `UPDATE ingredientes
-     SET nombre=?, unidad=?, precio_unidad=?, precio_compra=?, cantidad_compra=?, proveedor=?
-     WHERE id=?`,
+     SET nombre = ?, unidad = ?, categoria = COALESCE(?, categoria),
+         precio_unidad = ?, precio_compra = ?, cantidad_compra = ?, proveedor = ?
+     WHERE id = ?`,
     [
-      nombre,
-      unidad,
-      precio_unidad,
-      precio_compra ?? null,
-      cantidad_compra ?? null,
-      proveedor ?? null,
+      d.nombre,
+      d.unidad,
+      d.categoria,
+      d.precio_unidad,
+      d.precio_compra,
+      d.cantidad_compra,
+      d.proveedor,
       id,
     ],
   );
 };
 
+// Soft delete. No se permite si está en una base, una preparación o una
+// receta: esas quedarían con un ingrediente "fantasma" que sigue costando
+// pero ya no se puede ver ni editar.
 export const deleteIngrediente = async (id) => {
+  const [enBases] = await pool.query(
+    `SELECT DISTINCT b.nombre FROM base_ingredientes bi
+     JOIN bases b ON b.id = bi.base_id AND b.activo = 1
+     WHERE bi.ingrediente_id = ?`,
+    [id],
+  );
+  const [enPreps] = await pool.query(
+    `SELECT DISTINCT p.nombre FROM costeo_preparacion_ingredientes cpi
+     JOIN costeo_preparaciones p ON p.id = cpi.preparacion_id AND p.activo = 1
+     WHERE cpi.ingrediente_id = ?`,
+    [id],
+  );
+  const [enHelados] = await pool.query(
+    `SELECT DISTINCT h.sabor AS nombre FROM receta_ingredientes ri
+     JOIN recetas r ON r.id = ri.receta_id
+     JOIN helados h ON h.id = r.helado_id
+     WHERE ri.ingrediente_id = ?`,
+    [id],
+  );
+  const usos = [];
+  if (enBases.length)
+    usos.push(`las bases ${listaCorta(enBases.map((r) => r.nombre))}`);
+  if (enPreps.length)
+    usos.push(`las preparaciones ${listaCorta(enPreps.map((r) => r.nombre))}`);
+  if (enHelados.length)
+    usos.push(`los helados ${listaCorta(enHelados.map((r) => r.nombre))}`);
+  if (usos.length)
+    throw httpError(
+      409,
+      `No se puede eliminar: lo usan ${usos.join("; ")}. Quítalo de ahí primero`,
+    );
   await pool.query("UPDATE ingredientes SET activo = 0 WHERE id = ?", [id]);
 };
 
@@ -98,57 +206,69 @@ export const getPackaging = async () => {
   return rows;
 };
 
-export const createPackaging = async ({
-  nombre,
-  tipo,
-  precio_compra,
-  cantidad_compra,
-}) => {
-  const precio_unidad =
-    cantidad_compra > 0 ? Number(precio_compra) / Number(cantidad_compra) : 0;
+const validarPackaging = (d = {}) => {
+  const nombre = String(d.nombre ?? "").trim();
+  if (!nombre) throw httpError(400, "El nombre del packaging es obligatorio");
+  const tipo = d.tipo ?? "otro";
+  if (!TIPOS_PACKAGING.includes(tipo)) throw httpError(400, "Tipo inválido");
+  return {
+    nombre,
+    tipo,
+    precio_unidad: calcularPrecioUnidad(d.precio_compra, d.cantidad_compra),
+    precio_compra: Number(d.precio_compra),
+    cantidad_compra: Number(d.cantidad_compra),
+  };
+};
+
+export const createPackaging = async (data) => {
+  const d = validarPackaging(data);
+  await asegurarNombreLibre(pool, "packaging", d.nombre);
   const [result] = await pool.query(
     `INSERT INTO packaging (nombre, tipo, precio_unidad, precio_compra, cantidad_compra)
      VALUES (?, ?, ?, ?, ?)`,
-    [
-      nombre,
-      tipo,
-      precio_unidad,
-      precio_compra ?? null,
-      cantidad_compra ?? null,
-    ],
+    [d.nombre, d.tipo, d.precio_unidad, d.precio_compra, d.cantidad_compra],
   );
   return result.insertId;
 };
 
-export const updatePackaging = async (
-  id,
-  { nombre, tipo, precio_compra, cantidad_compra },
-) => {
-  const precio_unidad =
-    cantidad_compra > 0 ? Number(precio_compra) / Number(cantidad_compra) : 0;
+export const updatePackaging = async (id, data) => {
+  const d = validarPackaging(data);
+  const [existe] = await pool.query(
+    "SELECT id FROM packaging WHERE id = ? AND activo = 1",
+    [id],
+  );
+  if (!existe.length) throw httpError(404, "Packaging no encontrado");
+  await asegurarNombreLibre(pool, "packaging", d.nombre, Number(id));
   await pool.query(
     `UPDATE packaging
-     SET nombre=?, tipo=?, precio_unidad=?, precio_compra=?, cantidad_compra=?
-     WHERE id=?`,
-    [
-      nombre,
-      tipo,
-      precio_unidad,
-      precio_compra ?? null,
-      cantidad_compra ?? null,
-      id,
-    ],
+     SET nombre = ?, tipo = ?, precio_unidad = ?, precio_compra = ?, cantidad_compra = ?
+     WHERE id = ?`,
+    [d.nombre, d.tipo, d.precio_unidad, d.precio_compra, d.cantidad_compra, id],
   );
 };
 
 export const deletePackaging = async (id) => {
+  const [enHelados] = await pool.query(
+    `SELECT DISTINCT h.sabor AS nombre FROM receta_packaging rk
+     JOIN recetas r ON r.id = rk.receta_id
+     JOIN helados h ON h.id = r.helado_id
+     WHERE rk.packaging_id = ?`,
+    [id],
+  );
+  if (enHelados.length)
+    throw httpError(
+      409,
+      `No se puede eliminar: lo usan los helados ${listaCorta(enHelados.map((r) => r.nombre))}. Quítalo de ahí primero`,
+    );
   await pool.query("UPDATE packaging SET activo = 0 WHERE id = ?", [id]);
 };
 
 // ═══════════════════════════════════════════════════════════════
 // BASES
-// Una base = lote con ingredientes (gr/ml/unidad) + otras bases (ml).
-// costo_tanda  = Σ ingredientes + Σ (ml de sub-base × costo_por_ml de esa base)
+// Una base = lote con ingredientes (gr/ml/unidad) + preparaciones caseras
+// (ej. leche condensada) + otras bases (ml).
+// costo_tanda  = Σ ingredientes + Σ preparaciones (cantidad × costo_por_gr)
+//                + Σ (ml de sub-base × costo_por_ml de esa base)
 // costo_por_ml = costo_tanda / rendimiento_ml
 // `db` puede ser el pool o una conexión de una transacción abierta.
 // ═══════════════════════════════════════════════════════════════
@@ -169,9 +289,23 @@ const calcularBases = async (db = pool) => {
      JOIN bases b ON b.id = bs.base_origen_id AND b.activo = 1`,
   );
 
+  const [preps] = await db.query(
+    `SELECT bp.id, bp.base_id, bp.prep_id, bp.cantidad,
+            p.nombre AS prep_nombre, p.unidad AS prep_unidad
+     FROM base_preparaciones bp
+     JOIN costeo_preparaciones p ON p.id = bp.prep_id AND p.activo = 1`,
+  );
+  const costosPrep = await calcularCostosPreparaciones(db);
+  const costoPrepPorGr = (id) => Number(costosPrep.get(id)?.costo_por_gr ?? 0);
+
   const porId = new Map(bases.map((b) => [b.id, b]));
   const ingsPorBase = new Map();
   const subsPorBase = new Map();
+  const prepsPorBase = new Map();
+  for (const r of preps) {
+    if (!prepsPorBase.has(r.base_id)) prepsPorBase.set(r.base_id, []);
+    prepsPorBase.get(r.base_id).push(r);
+  }
   for (const r of ings) {
     if (!ingsPorBase.has(r.base_id)) ingsPorBase.set(r.base_id, []);
     ingsPorBase.get(r.base_id).push(r);
@@ -191,6 +325,9 @@ const calcularBases = async (db = pool) => {
     let total = 0;
     for (const r of ingsPorBase.get(id) ?? []) {
       total += Number(r.cantidad) * Number(r.precio_unidad);
+    }
+    for (const r of prepsPorBase.get(id) ?? []) {
+      total += Number(r.cantidad) * costoPrepPorGr(r.prep_id);
     }
     for (const r of subsPorBase.get(id) ?? []) {
       if (porId.has(r.base_origen_id)) {
@@ -212,6 +349,10 @@ const calcularBases = async (db = pool) => {
     base.costo_tanda = costoTanda(base.id);
     base.costo_por_ml = costoPorMl(base.id);
     base.ingredientes = ingsPorBase.get(base.id) ?? [];
+    base.preparaciones = (prepsPorBase.get(base.id) ?? []).map((r) => ({
+      ...r,
+      costo_por_gr: costoPrepPorGr(r.prep_id),
+    }));
     base.sub_bases = (subsPorBase.get(base.id) ?? []).map((r) => ({
       ...r,
       costo_por_ml: costoPorMl(r.base_origen_id),
@@ -252,7 +393,7 @@ const validarSinCiclos = async (db, base_id, origenIds) => {
 // Crea (id null) o actualiza una base con sus ingredientes y sub-bases,
 // todo en una transacción y con UNA sola conexión (connectionLimit = 1:
 // un pool.query dentro de la transacción dejaría la petición colgada).
-// `ingredientes` / `sub_bases` en undefined = no tocar los existentes.
+// `ingredientes` / `preparaciones` / `sub_bases` en undefined = no tocar los existentes.
 const guardarBase = async (id, data = {}) => {
   const esNueva = id == null;
   const nombre = String(data.nombre ?? "").trim();
@@ -275,6 +416,10 @@ const guardarBase = async (id, data = {}) => {
     data.ingredientes === undefined
       ? null
       : normalizarLineas(data.ingredientes, "ingrediente_id", "Ingredientes");
+  const preparaciones =
+    data.preparaciones === undefined
+      ? null
+      : normalizarLineas(data.preparaciones, "prep_id", "Preparaciones");
   const sub_bases =
     data.sub_bases === undefined
       ? null
@@ -290,6 +435,7 @@ const guardarBase = async (id, data = {}) => {
     await conn.beginTransaction();
 
     let base_id = id;
+    await asegurarNombreLibre(conn, "bases", nombre, esNueva ? 0 : Number(id));
     if (esNueva) {
       const [r] = await conn.query(
         "INSERT INTO bases (nombre, descripcion, rendimiento_ml) VALUES (?, ?, ?)",
@@ -312,6 +458,18 @@ const guardarBase = async (id, data = {}) => {
     }
 
     if (ingredientes) {
+      const ids = ingredientes.map((i) => i.ingrediente_id);
+      if (ids.length) {
+        const [ok] = await conn.query(
+          "SELECT id FROM ingredientes WHERE activo = 1 AND id IN (?)",
+          [ids],
+        );
+        if (ok.length !== ids.length)
+          throw httpError(
+            400,
+            "Uno de los ingredientes seleccionados ya no existe",
+          );
+      }
       await conn.query("DELETE FROM base_ingredientes WHERE base_id = ?", [
         base_id,
       ]);
@@ -319,6 +477,30 @@ const guardarBase = async (id, data = {}) => {
         await conn.query(
           "INSERT INTO base_ingredientes (base_id, ingrediente_id, cantidad) VALUES ?",
           [ingredientes.map((i) => [base_id, i.ingrediente_id, i.cantidad])],
+        );
+      }
+    }
+
+    if (preparaciones) {
+      const ids = preparaciones.map((p) => p.prep_id);
+      if (ids.length) {
+        const [ok] = await conn.query(
+          "SELECT id FROM costeo_preparaciones WHERE activo = 1 AND id IN (?)",
+          [ids],
+        );
+        if (ok.length !== ids.length)
+          throw httpError(
+            400,
+            "Una de las preparaciones seleccionadas ya no existe",
+          );
+      }
+      await conn.query("DELETE FROM base_preparaciones WHERE base_id = ?", [
+        base_id,
+      ]);
+      if (preparaciones.length) {
+        await conn.query(
+          "INSERT INTO base_preparaciones (base_id, prep_id, cantidad) VALUES ?",
+          [preparaciones.map((p) => [base_id, p.prep_id, p.cantidad])],
         );
       }
     }
@@ -365,8 +547,9 @@ const guardarBase = async (id, data = {}) => {
 };
 
 // BasesTab envía: { nombre, descripcion, rendimiento_ml,
-//   ingredientes: [{ingrediente_id, cantidad}],
-//   sub_bases:    [{base_origen_id, cantidad_ml}] }
+//   ingredientes:  [{ingrediente_id, cantidad}],
+//   preparaciones: [{prep_id, cantidad}],
+//   sub_bases:     [{base_origen_id, cantidad_ml}] }
 export const createBase = async (data) => guardarBase(null, data);
 export const updateBase = async (id, data) => {
   await guardarBase(Number(id), data);
@@ -418,18 +601,35 @@ export const getCostosFijos = async () => {
   };
 };
 
-export const createCostoFijo = async ({ nombre, valor_mensual }) => {
+const validarCostoFijo = ({ nombre, valor_mensual } = {}) => {
+  const n = String(nombre ?? "").trim();
+  if (!n) throw httpError(400, "El nombre del costo fijo es obligatorio");
+  const v = Number(valor_mensual);
+  if (!(v >= 0)) throw httpError(400, "El valor mensual no es válido");
+  return { nombre: n, valor_mensual: v };
+};
+
+export const createCostoFijo = async (data) => {
+  const d = validarCostoFijo(data);
+  await asegurarNombreLibre(pool, "costos_fijos", d.nombre);
   const [result] = await pool.query(
     "INSERT INTO costos_fijos (nombre, valor_mensual) VALUES (?, ?)",
-    [nombre, valor_mensual],
+    [d.nombre, d.valor_mensual],
   );
   return result.insertId;
 };
 
-export const updateCostoFijo = async (id, { nombre, valor_mensual }) => {
+export const updateCostoFijo = async (id, data) => {
+  const d = validarCostoFijo(data);
+  const [existe] = await pool.query(
+    "SELECT id FROM costos_fijos WHERE id = ? AND activo = 1",
+    [id],
+  );
+  if (!existe.length) throw httpError(404, "Costo fijo no encontrado");
+  await asegurarNombreLibre(pool, "costos_fijos", d.nombre, Number(id));
   await pool.query(
-    "UPDATE costos_fijos SET nombre=?, valor_mensual=? WHERE id=?",
-    [nombre, valor_mensual, id],
+    "UPDATE costos_fijos SET nombre = ?, valor_mensual = ? WHERE id = ?",
+    [d.nombre, d.valor_mensual, id],
   );
 };
 
@@ -437,10 +637,16 @@ export const deleteCostoFijo = async (id) => {
   await pool.query("UPDATE costos_fijos SET activo = 0 WHERE id = ?", [id]);
 };
 
+// Upsert: si la fila de configuración no existe, la crea (antes el UPDATE
+// no cambiaba nada y el usuario veía "Actualizado" sin que se guardara).
 export const updateUnidadesMes = async (unidades_mes) => {
+  const n = Number(unidades_mes);
+  if (!Number.isInteger(n) || n <= 0)
+    throw httpError(400, "Las unidades por mes deben ser un entero mayor a 0");
   await pool.query(
-    "UPDATE config_produccion SET unidades_mes = ? WHERE id = 1",
-    [unidades_mes],
+    `INSERT INTO config_produccion (id, unidades_mes) VALUES (1, ?)
+     ON DUPLICATE KEY UPDATE unidades_mes = ?`,
+    [n, n],
   );
 };
 
@@ -503,7 +709,7 @@ const cargarReceta = async (db, helado_id) => {
 
   const [ingredientes] = await db.query(
     `SELECT ri.ingrediente_id, ri.cantidad, ri.tipo,
-            i.nombre, i.unidad, i.precio_unidad
+            i.nombre, i.unidad, i.categoria, i.precio_unidad
      FROM receta_ingredientes ri
      JOIN ingredientes i ON i.id = ri.ingrediente_id
      WHERE ri.receta_id = ?
